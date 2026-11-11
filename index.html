@@ -113,7 +113,7 @@
     <section class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
         <i data-lucide="calendar-range" class="w-4 h-4 text-brand-400"></i>
-        <span>Filter Rentang Tanggal:</span>
+        <span>Filter Tanggal:</span>
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5">
@@ -126,10 +126,13 @@
           <input type="date" id="filterEndDate" class="bg-transparent text-xs text-slate-100 focus:outline-none" />
         </div>
         <button onclick="applyDateFilter()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition shadow">
-          Terapkan Filter
+          Terapkan
+        </button>
+        <button onclick="setFilterToday()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-300 border border-brand-500/30 text-xs font-medium transition">
+          Hari Ini
         </button>
         <button onclick="resetDateFilter()" class="px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-slate-200 text-xs font-medium transition">
-          Reset (Full Bulan)
+          Bulan Penuh
         </button>
       </div>
     </section>
