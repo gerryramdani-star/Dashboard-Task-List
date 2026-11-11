@@ -176,6 +176,7 @@
           <div class="mt-3 w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
             <div id="cardPoinProgress" class="bg-brand-500 h-1.5 rounded-full transition-all duration-700" style="width: 0%"></div>
           </div>
+          <!-- ID cardPeriodTargetNote sudah dipasang di bawah ini -->
           <p class="text-[11px] text-slate-400 mt-2" id="cardPeriodTargetNote">Target Periode: 0 Poin</p>
         </div>
 
@@ -304,10 +305,16 @@
 
   <script>
     const STORAGE_KEY = 'KPI_DASHBOARD_API_URL';
-    const HARI_KERJA_BULANAN = 22; // Standar target bulanan penuh
+    const HARI_KERJA_BULANAN = 22;
     let rawDashboardData = null;
     let barChartInstance = null;
     let donutChartInstance = null;
+
+    // Helper Aman: Mengisi teks tanpa risiko crash jika ID tidak sengaja terhapus
+    function setText(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = text;
+    }
 
     function getTodayString() {
       const now = new Date();
@@ -322,46 +329,56 @@
       const savedUrl = localStorage.getItem(STORAGE_KEY);
       
       const today = getTodayString();
-      document.getElementById('filterStartDate').value = today;
-      document.getElementById('filterEndDate').value = today;
+      const startEl = document.getElementById('filterStartDate');
+      const endEl = document.getElementById('filterEndDate');
+      if (startEl) startEl.value = today;
+      if (endEl) endEl.value = today;
 
       if (savedUrl) {
-        document.getElementById('apiUrlInput').value = savedUrl;
+        const apiIn = document.getElementById('apiUrlInput');
+        if (apiIn) apiIn.value = savedUrl;
         loadDashboardData(today, today);
       } else {
-        document.getElementById('loadingState').classList.add('hidden');
+        const loadingEl = document.getElementById('loadingState');
+        if (loadingEl) loadingEl.classList.add('hidden');
         toggleConfigModal();
       }
-      document.getElementById('configBtn').addEventListener('click', toggleConfigModal);
+      
+      const cfgBtn = document.getElementById('configBtn');
+      if (cfgBtn) cfgBtn.addEventListener('click', toggleConfigModal);
     });
 
     function toggleConfigModal() {
-      document.getElementById('configModal').classList.toggle('hidden');
+      const modal = document.getElementById('configModal');
+      if (modal) modal.classList.toggle('hidden');
     }
 
     function saveApiUrl() {
-      const input = document.getElementById('apiUrlInput').value.trim();
-      if (!input) {
+      const input = document.getElementById('apiUrlInput');
+      const val = input ? input.value.trim() : '';
+      if (!val) {
         alert('Silakan masukkan Web App URL Apps Script Anda.');
         return;
       }
-      localStorage.setItem(STORAGE_KEY, input);
+      localStorage.setItem(STORAGE_KEY, val);
       toggleConfigModal();
-      const start = document.getElementById('filterStartDate').value;
-      const end = document.getElementById('filterEndDate').value;
+      const start = document.getElementById('filterStartDate')?.value || '';
+      const end = document.getElementById('filterEndDate')?.value || '';
       loadDashboardData(start, end);
     }
 
     function setFilterToday() {
       const today = getTodayString();
-      document.getElementById('filterStartDate').value = today;
-      document.getElementById('filterEndDate').value = today;
+      const startEl = document.getElementById('filterStartDate');
+      const endEl = document.getElementById('filterEndDate');
+      if (startEl) startEl.value = today;
+      if (endEl) endEl.value = today;
       loadDashboardData(today, today);
     }
 
     function applyDateFilter() {
-      const start = document.getElementById('filterStartDate').value;
-      const end = document.getElementById('filterEndDate').value;
+      const start = document.getElementById('filterStartDate')?.value;
+      const end = document.getElementById('filterEndDate')?.value;
       if (!start || !end) {
         alert('Silakan pilih rentang tanggal.');
         return;
@@ -374,14 +391,16 @@
     }
 
     function resetDateFilter() {
-      document.getElementById('filterStartDate').value = '';
-      document.getElementById('filterEndDate').value = '';
+      const startEl = document.getElementById('filterStartDate');
+      const endEl = document.getElementById('filterEndDate');
+      if (startEl) startEl.value = '';
+      if (endEl) endEl.value = '';
       loadDashboardData('', '');
     }
 
     function triggerRefresh() {
-      const start = document.getElementById('filterStartDate').value;
-      const end = document.getElementById('filterEndDate').value;
+      const start = document.getElementById('filterStartDate')?.value || '';
+      const end = document.getElementById('filterEndDate')?.value || '';
       loadDashboardData(start, end);
     }
 
@@ -397,10 +416,10 @@
       const contentEl = document.getElementById('dashboardContent');
       const refreshIcon = document.getElementById('refreshIcon');
 
-      loadingEl.classList.remove('hidden');
-      errorEl.classList.add('hidden');
-      contentEl.classList.add('hidden');
-      refreshIcon.classList.add('animate-spin');
+      if (loadingEl) loadingEl.classList.remove('hidden');
+      if (errorEl) errorEl.classList.add('hidden');
+      if (contentEl) contentEl.classList.add('hidden');
+      if (refreshIcon) refreshIcon.classList.add('animate-spin');
 
       try {
         let requestUrl = baseUrl;
@@ -422,219 +441,231 @@
         rawDashboardData = data;
         populateDashboard(data);
 
-        loadingEl.classList.add('hidden');
-        contentEl.classList.remove('hidden');
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (contentEl) contentEl.classList.remove('hidden');
 
         const now = new Date();
-        document.getElementById('lastUpdatedText').innerText = 
-          `Terakhir diperbarui: ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        setText('lastUpdatedText', `Terakhir diperbarui: ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
       } catch (err) {
-        loadingEl.classList.add('hidden');
-        errorEl.classList.remove('hidden');
-        document.getElementById('errorMessage').innerText = err.toString();
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (errorEl) errorEl.classList.remove('hidden');
+        setText('errorMessage', err.toString());
       } finally {
-        refreshIcon.classList.remove('animate-spin');
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
         lucide.createIcons();
       }
     }
 
     function populateDashboard(data) {
-      const sum = data.summary;
+      const sum = data.summary || {};
       const days = data.workingDays || HARI_KERJA_BULANAN;
 
-      // 1. RE-KALKULASI SELURUH METRIK BERDASARKAN GOAL BULANAN (22 HARI)
+      // Kalkulasi KPI Berdasarkan Goal Bulanan Penuh
       let totalGoalBulananTim = 0;
-      data.employees.forEach(emp => {
+      (data.employees || []).forEach(emp => {
         emp.goalBulanan = emp.targetHarian * HARI_KERJA_BULANAN;
         totalGoalBulananTim += emp.goalBulanan;
-        // Rumus: Poin Diperoleh / Goal Bulanan
         emp.kpiPersenBulanan = emp.goalBulanan > 0
           ? Math.round((emp.poinDiperoleh / emp.goalBulanan) * 1000) / 10
           : 0;
         emp.statusCapaianBulanan = emp.kpiPersenBulanan >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
       });
 
-      // Update Label Periode
+      // Update Badge Periode
       const badge = document.getElementById('periodBadge');
-      if (data.filter && data.filter.startDate && data.filter.endDate) {
-        if (data.filter.startDate === data.filter.endDate) {
-          badge.innerText = `Hari Ini: ${data.filter.startDate} (1 Hari Kerja)`;
+      if (badge) {
+        if (data.filter && data.filter.startDate && data.filter.endDate) {
+          badge.innerText = data.filter.startDate === data.filter.endDate
+            ? `Hari Ini: ${data.filter.startDate} (1 Hari Kerja)`
+            : `${data.filter.startDate} s/d ${data.filter.endDate} (${days} Hari Kerja)`;
         } else {
-          badge.innerText = `${data.filter.startDate} s/d ${data.filter.endDate} (${days} Hari Kerja)`;
+          badge.innerText = `Bulan Penuh (${days} Hari Kerja)`;
         }
-      } else {
-        badge.innerText = `Bulan Penuh (${days} Hari Kerja)`;
       }
 
-      // Update Card 1: Total Poin vs Goal Bulanan Tim
-      document.getElementById('cardTotalPoin').innerText = (sum.totalPoin || 0).toLocaleString('id-ID');
-      document.getElementById('cardTargetRatio').innerText = `/ ${totalGoalBulananTim.toLocaleString('id-ID')} Goal Bln`;
-      const ratioBulanan = totalGoalBulananTim > 0 ? Math.min(100, Math.round((sum.totalPoin / totalGoalBulananTim) * 100)) : 0;
-      document.getElementById('cardPoinProgress').style.width = `${ratioBulanan}%`;
-      document.getElementById('cardPeriodTargetNote').innerText = `Target Periode Aktif: ${(sum.totalTarget || 0).toLocaleString('id-ID')} Poin (${days} Hari)`;
+      // Update Metric Cards
+      setText('cardTotalPoin', (sum.totalPoin || 0).toLocaleString('id-ID'));
+      setText('cardTargetRatio', `/ ${totalGoalBulananTim.toLocaleString('id-ID')} Goal Bln`);
+      
+      const ratioBulanan = totalGoalBulananTim > 0 ? Math.min(100, Math.round(((sum.totalPoin || 0) / totalGoalBulananTim) * 100)) : 0;
+      const progressEl = document.getElementById('cardPoinProgress');
+      if (progressEl) progressEl.style.width = `${ratioBulanan}%`;
 
-      // Update Card 2: Rata-rata Capaian KPI Berdasarkan Goal Bulanan
-      const avgKpiGoal = data.employees.length > 0
+      setText('cardPeriodTargetNote', `Target Periode Aktif: ${(sum.totalTarget || 0).toLocaleString('id-ID')} Poin (${days} Hari)`);
+
+      const avgKpiGoal = (data.employees || []).length > 0
         ? Math.round((data.employees.reduce((acc, curr) => acc + curr.kpiPersenBulanan, 0) / data.employees.length) * 10) / 10
         : 0;
-      document.getElementById('cardAvgKpi').innerText = `${avgKpiGoal}%`;
-      const tercapaiGoalCount = data.employees.filter(e => e.statusCapaianBulanan === 'TERCAPAI').length;
-      document.getElementById('cardTercapaiCount').innerText = `${tercapaiGoalCount} Tercapai`;
-      document.getElementById('cardTotalKaryawan').innerText = sum.totalKaryawan || 0;
+      setText('cardAvgKpi', `${avgKpiGoal}%`);
 
-      // Update Card 3 & 4
-      document.getElementById('cardCompliance').innerText = `${sum.complianceRate || 0}%`;
-      document.getElementById('cardComplianceProgress').style.width = `${Math.min(100, sum.complianceRate || 0)}%`;
-      document.getElementById('cardPendingTasks').innerText = (sum.totalPendingTasks || 0).toLocaleString('id-ID');
+      const tercapaiGoalCount = (data.employees || []).filter(e => e.statusCapaianBulanan === 'TERCAPAI').length;
+      setText('cardTercapaiCount', `${tercapaiGoalCount} Tercapai`);
+      setText('cardTotalKaryawan', sum.totalKaryawan || 0);
 
-      // Update Division Dropdown
+      setText('cardCompliance', `${sum.complianceRate || 0}%`);
+      const compProg = document.getElementById('cardComplianceProgress');
+      if (compProg) compProg.style.width = `${Math.min(100, sum.complianceRate || 0)}%`;
+
+      setText('cardPendingTasks', (sum.totalPendingTasks || 0).toLocaleString('id-ID'));
+
+      // Update Dropdown Divisi
       const divFilter = document.getElementById('divisionFilter');
-      const curSelected = divFilter.value;
-      divFilter.innerHTML = '<option value="ALL">Semua Divisi</option>';
-      const divisions = Object.keys(data.divisionStats || {}).sort();
-      divisions.forEach(div => {
-        const opt = document.createElement('option');
-        opt.value = div;
-        opt.innerText = `${div} (${data.divisionStats[div].count})`;
-        divFilter.appendChild(opt);
-      });
-      divFilter.value = divisions.includes(curSelected) ? curSelected : 'ALL';
+      if (divFilter) {
+        const curSelected = divFilter.value;
+        divFilter.innerHTML = '<option value="ALL">Semua Divisi</option>';
+        const divisions = Object.keys(data.divisionStats || {}).sort();
+        divisions.forEach(div => {
+          const opt = document.createElement('option');
+          opt.value = div;
+          opt.innerText = `${div} (${data.divisionStats[div].count})`;
+          divFilter.appendChild(opt);
+        });
+        divFilter.value = divisions.includes(curSelected) ? curSelected : 'ALL';
+      }
 
       renderCharts(data);
       renderTable();
     }
 
     function renderCharts(data) {
-      // Urutkan berdasarkan capaian % Goal Bulanan tertinggi
-      const emps = [...data.employees].sort((a, b) => b.kpiPersenBulanan - a.kpiPersenBulanan);
+      const emps = [...(data.employees || [])].sort((a, b) => b.kpiPersenBulanan - a.kpiPersenBulanan);
       const categories = emps.map(e => e.nama);
       const points = emps.map(e => e.poinDiperoleh);
       const goals = emps.map(e => e.goalBulanan);
 
-      const barOptions = {
-        series: [
-          { name: 'Poin Selesai', data: points },
-          { name: 'Goal Bulanan (22 Hari)', data: goals }
-        ],
-        chart: {
-          type: 'bar',
-          height: 380,
-          toolbar: { show: false },
-          background: 'transparent',
-          fontFamily: 'inherit'
-        },
-        theme: { mode: 'dark' },
-        colors: ['#6366f1', '#475569'],
-        plotOptions: {
-          bar: {
-            horizontal: false,
-            columnWidth: '55%',
-            borderRadius: 6
-          }
-        },
-        dataLabels: { enabled: false },
-        stroke: { show: true, width: 2, colors: ['transparent'] },
-        xaxis: {
-          categories: categories,
-          labels: {
-            rotate: -45,
-            style: { colors: '#94a3b8', fontSize: '11px' }
-          }
-        },
-        yaxis: {
-          labels: {
-            style: { colors: '#94a3b8', fontSize: '11px' },
-            formatter: val => Math.round(val)
-          }
-        },
-        grid: { borderColor: '#334155' },
-        tooltip: {
-          y: {
-            formatter: (val, opts) => {
-              const emp = emps[opts.dataPointIndex];
-              return `${val} Poin (${emp.kpiPersenBulanan}% dari Goal Bulanan)`;
+      const chartEl = document.querySelector("#barChart");
+      if (chartEl) {
+        const barOptions = {
+          series: [
+            { name: 'Poin Selesai', data: points },
+            { name: 'Goal Bulanan (22 Hari)', data: goals }
+          ],
+          chart: {
+            type: 'bar',
+            height: 380,
+            toolbar: { show: false },
+            background: 'transparent',
+            fontFamily: 'inherit'
+          },
+          theme: { mode: 'dark' },
+          colors: ['#6366f1', '#475569'],
+          plotOptions: {
+            bar: {
+              horizontal: false,
+              columnWidth: '55%',
+              borderRadius: 6
+            }
+          },
+          dataLabels: { enabled: false },
+          stroke: { show: true, width: 2, colors: ['transparent'] },
+          xaxis: {
+            categories: categories,
+            labels: {
+              rotate: -45,
+              style: { colors: '#94a3b8', fontSize: '11px' }
+            }
+          },
+          yaxis: {
+            labels: {
+              style: { colors: '#94a3b8', fontSize: '11px' },
+              formatter: val => Math.round(val)
+            }
+          },
+          grid: { borderColor: '#334155' },
+          tooltip: {
+            y: {
+              formatter: (val, opts) => {
+                const emp = emps[opts.dataPointIndex];
+                return `${val} Poin (${emp.kpiPersenBulanan}% dari Goal Bulanan)`;
+              }
             }
           }
-        }
-      };
+        };
 
-      if (barChartInstance) barChartInstance.destroy();
-      barChartInstance = new ApexCharts(document.querySelector("#barChart"), barOptions);
-      barChartInstance.render();
+        if (barChartInstance) barChartInstance.destroy();
+        barChartInstance = new ApexCharts(chartEl, barOptions);
+        barChartInstance.render();
+      }
 
-      const divNames = Object.keys(data.divisionStats);
-      const divPoints = divNames.map(k => Math.round((data.divisionStats[k].poin || 0) * 10) / 10);
+      const donutEl = document.querySelector("#donutChart");
+      if (donutEl) {
+        const divNames = Object.keys(data.divisionStats || {});
+        const divPoints = divNames.map(k => Math.round((data.divisionStats[k].poin || 0) * 10) / 10);
 
-      const donutOptions = {
-        series: divPoints,
-        labels: divNames,
-        chart: {
-          type: 'donut',
-          height: 280,
-          background: 'transparent',
-          fontFamily: 'inherit'
-        },
-        theme: { mode: 'dark' },
-        colors: ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'],
-        legend: { show: false },
-        dataLabels: { enabled: false },
-        stroke: { width: 0 },
-        plotOptions: {
-          pie: {
-            donut: {
-              size: '72%',
-              labels: {
-                show: true,
-                total: {
+        const donutOptions = {
+          series: divPoints,
+          labels: divNames,
+          chart: {
+            type: 'donut',
+            height: 280,
+            background: 'transparent',
+            fontFamily: 'inherit'
+          },
+          theme: { mode: 'dark' },
+          colors: ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'],
+          legend: { show: false },
+          dataLabels: { enabled: false },
+          stroke: { width: 0 },
+          plotOptions: {
+            pie: {
+              donut: {
+                size: '72%',
+                labels: {
                   show: true,
-                  label: 'Total Poin',
-                  fontSize: '12px',
-                  color: '#94a3b8',
-                  formatter: () => Math.round(data.summary.totalPoin)
+                  total: {
+                    show: true,
+                    label: 'Total Poin',
+                    fontSize: '12px',
+                    color: '#94a3b8',
+                    formatter: () => Math.round(data.summary?.totalPoin || 0)
+                  }
                 }
               }
             }
           }
+        };
+
+        if (donutChartInstance) donutChartInstance.destroy();
+        donutChartInstance = new ApexCharts(donutEl, donutOptions);
+        donutChartInstance.render();
+
+        const legendEl = document.getElementById('donutLegend');
+        if (legendEl) {
+          legendEl.innerHTML = '';
+          divNames.forEach((dName, idx) => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between text-xs text-slate-300';
+            item.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${donutOptions.colors[idx % donutOptions.colors.length]}"></span>
+                <span>${dName}</span>
+              </div>
+              <span class="font-semibold text-slate-100">${divPoints[idx]} Poin</span>
+            `;
+            legendEl.appendChild(item);
+          });
         }
-      };
-
-      if (donutChartInstance) donutChartInstance.destroy();
-      donutChartInstance = new ApexCharts(document.querySelector("#donutChart"), donutOptions);
-      donutChartInstance.render();
-
-      const legendEl = document.getElementById('donutLegend');
-      legendEl.innerHTML = '';
-      divNames.forEach((dName, idx) => {
-        const item = document.createElement('div');
-        item.className = 'flex items-center justify-between text-xs text-slate-300';
-        item.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${donutOptions.colors[idx % donutOptions.colors.length]}"></span>
-            <span>${dName}</span>
-          </div>
-          <span class="font-semibold text-slate-100">${divPoints[idx]} Poin</span>
-        `;
-        legendEl.appendChild(item);
-      });
+      }
     }
 
     function renderTable() {
       if (!rawDashboardData) return;
 
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      const divFilter = document.getElementById('divisionFilter').value;
+      const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+      const divFilter = document.getElementById('divisionFilter')?.value || 'ALL';
       const tbody = document.getElementById('tableBody');
+      if (!tbody) return;
+
       const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
       const isFiltered = days !== HARI_KERJA_BULANAN;
       tbody.innerHTML = '';
 
-      let list = rawDashboardData.employees.filter(emp => {
+      let list = (rawDashboardData.employees || []).filter(emp => {
         const matchName = emp.nama.toLowerCase().includes(search);
         const matchDiv = divFilter === 'ALL' || emp.divisi === divFilter;
         return matchName && matchDiv;
       });
 
-      // Sorting berdasarkan Capaian % Goal Bulanan
       list.sort((a, b) => b.kpiPersenBulanan - a.kpiPersenBulanan);
 
       if (list.length === 0) {
@@ -712,7 +743,6 @@
 
       const wb = XLSX.utils.book_new();
 
-      // 1. Sheet Pertama: DASHBOARD SUMMARY
       const summaryRows = rawDashboardData.employees.map((e, idx) => ({
         'No': idx + 1,
         'Nama Karyawan': e.nama,
@@ -732,7 +762,6 @@
       const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
       XLSX.utils.book_append_sheet(wb, wsSummary, 'DASHBOARD');
 
-      // 2. Sheet Individu: Setiap Karyawan (Format 11 Kolom Lengkap)
       rawDashboardData.employees.forEach(emp => {
         const detailRows = [];
         let curDate = '';
@@ -788,7 +817,7 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
 
-      const sum = rawDashboardData.summary;
+      const sum = rawDashboardData.summary || {};
       const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
       const filter = rawDashboardData.filter;
       const periodLabel = (filter && filter.startDate && filter.endDate)
@@ -797,14 +826,13 @@
 
       const totalGoalTim = rawDashboardData.employees.reduce((acc, emp) => acc + emp.goalBulanan, 0);
 
-      // Title & Header Info
       doc.setFontSize(16);
       doc.setTextColor(30, 41, 59);
       doc.text("LAPORAN REKAPITULASI KPI & MONITORING TASK LIST", 40, 40);
 
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin} | Goal Bulanan Tim: ${totalGoalTim}`, 40, 58);
+      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin || 0} | Goal Bulanan Tim: ${totalGoalTim}`, 40, 58);
 
       const tableRows = rawDashboardData.employees.map((e, index) => [
         index + 1,
