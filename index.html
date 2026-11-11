@@ -54,7 +54,7 @@
           <h1 class="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
             Monitoring KPI & Task List
             <span id="periodBadge" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Oktober (22 Hari Kerja)
+              Hari Ini (1 Hari Kerja)
             </span>
           </h1>
           <p class="text-xs text-slate-400" id="lastUpdatedText">Sinkronisasi data otomatis dengan Google Sheets</p>
@@ -77,7 +77,7 @@
           <i data-lucide="settings" class="w-4 h-4"></i>
         </button>
 
-        <button id="refreshBtn" onclick="loadDashboardData()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow-lg shadow-brand-600/25 active:scale-95">
+        <button id="refreshBtn" onclick="triggerRefresh()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow-lg shadow-brand-600/25 active:scale-95">
           <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
           <span>Perbarui</span>
         </button>
@@ -109,7 +109,7 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-    <!-- DATE FILTER BAR -->
+    <!-- 1. DATE FILTER BAR (DIPERBARUI DENGAN PINTASAN HARI INI & BULAN PENUH) -->
     <section class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
         <i data-lucide="calendar-range" class="w-4 h-4 text-brand-400"></i>
@@ -125,13 +125,13 @@
           <span class="text-[11px] text-slate-400">Sampai:</span>
           <input type="date" id="filterEndDate" class="bg-transparent text-xs text-slate-100 focus:outline-none" />
         </div>
-        <button onclick="applyDateFilter()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition shadow">
+        <button onclick="applyDateFilter()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition shadow active:scale-95">
           Terapkan
         </button>
-        <button onclick="setFilterToday()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-300 border border-brand-500/30 text-xs font-medium transition">
+        <button onclick="setFilterToday()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-brand-300 border border-brand-500/30 text-xs font-medium transition active:scale-95">
           Hari Ini
         </button>
-        <button onclick="resetDateFilter()" class="px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-slate-200 text-xs font-medium transition">
+        <button onclick="resetDateFilter()" class="px-3 py-1.5 rounded-xl border border-slate-700 text-slate-400 hover:text-slate-200 text-xs font-medium transition active:scale-95">
           Bulan Penuh
         </button>
       </div>
@@ -307,12 +307,27 @@
     let barChartInstance = null;
     let donutChartInstance = null;
 
+    // Helper untuk mengambil tanggal lokal hari ini dalam format YYYY-MM-DD
+    function getTodayString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // Default saat halaman dibuka: input tanggal langsung terisi Hari Ini dan memuat data hari ini
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       const savedUrl = localStorage.getItem(STORAGE_KEY);
+      
+      const today = getTodayString();
+      document.getElementById('filterStartDate').value = today;
+      document.getElementById('filterEndDate').value = today;
+
       if (savedUrl) {
         document.getElementById('apiUrlInput').value = savedUrl;
-        loadDashboardData();
+        loadDashboardData(today, today);
       } else {
         document.getElementById('loadingState').classList.add('hidden');
         toggleConfigModal();
@@ -332,7 +347,46 @@
       }
       localStorage.setItem(STORAGE_KEY, input);
       toggleConfigModal();
-      loadDashboardData();
+      const start = document.getElementById('filterStartDate').value;
+      const end = document.getElementById('filterEndDate').value;
+      loadDashboardData(start, end);
+    }
+
+    // Pintasan Tombol: Hari Ini
+    function setFilterToday() {
+      const today = getTodayString();
+      document.getElementById('filterStartDate').value = today;
+      document.getElementById('filterEndDate').value = today;
+      loadDashboardData(today, today);
+    }
+
+    // Eksekusi Tombol: Terapkan Filter
+    function applyDateFilter() {
+      const start = document.getElementById('filterStartDate').value;
+      const end = document.getElementById('filterEndDate').value;
+      if (!start || !end) {
+        alert('Silakan pilih rentang tanggal.');
+        return;
+      }
+      if (start > end) {
+        alert('Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.');
+        return;
+      }
+      loadDashboardData(start, end);
+    }
+
+    // Pintasan Tombol: Bulan Penuh
+    function resetDateFilter() {
+      document.getElementById('filterStartDate').value = '';
+      document.getElementById('filterEndDate').value = '';
+      loadDashboardData('', '');
+    }
+
+    // Tombol refresh mengikuti rentang tanggal yang sedang aktif di input
+    function triggerRefresh() {
+      const start = document.getElementById('filterStartDate').value;
+      const end = document.getElementById('filterEndDate').value;
+      loadDashboardData(start, end);
     }
 
     async function loadDashboardData(startDate = '', endDate = '') {
@@ -388,36 +442,20 @@
       }
     }
 
-    function applyDateFilter() {
-      const start = document.getElementById('filterStartDate').value;
-      const end = document.getElementById('filterEndDate').value;
-      if (!start || !end) {
-        alert('Silakan pilih Tanggal Mulai dan Tanggal Selesai terlebih dahulu.');
-        return;
-      }
-      if (start > end) {
-        alert('Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.');
-        return;
-      }
-      loadDashboardData(start, end);
-    }
-
-    function resetDateFilter() {
-      document.getElementById('filterStartDate').value = '';
-      document.getElementById('filterEndDate').value = '';
-      loadDashboardData('', '');
-    }
-
     function populateDashboard(data) {
       const sum = data.summary;
       const days = data.workingDays || 22;
 
-      // Update Badge Periode
+      // 3. PENYESUAIAN TEKS LABEL PERIODE DINAMIS
       const badge = document.getElementById('periodBadge');
       if (data.filter && data.filter.startDate && data.filter.endDate) {
-        badge.innerText = `${data.filter.startDate} s/d ${data.filter.endDate} (${days} Hari Kerja)`;
+        if (data.filter.startDate === data.filter.endDate) {
+          badge.innerText = `Hari Ini: ${data.filter.startDate} (1 Hari Kerja)`;
+        } else {
+          badge.innerText = `${data.filter.startDate} s/d ${data.filter.endDate} (${days} Hari Kerja)`;
+        }
       } else {
-        badge.innerText = `Oktober (${days} Hari Kerja)`;
+        badge.innerText = `Bulan Penuh (${days} Hari Kerja)`;
       }
 
       // Update Metric Cards
@@ -645,79 +683,77 @@
     }
 
     // =========================================================================
-    // FITUR EKSPOR EXCEL (SheetJS)
+    // FITUR EKSPOR EXCEL GABUNGAN (SheetJS — MULTI-TAB SELURUH TIM)
     // =========================================================================
     function exportToExcel() {
-  if (!rawDashboardData || !rawDashboardData.employees) {
-    alert('Data belum siap untuk diekspor!');
-    return;
-  }
+      if (!rawDashboardData || !rawDashboardData.employees) {
+        alert('Data belum siap untuk diekspor!');
+        return;
+      }
 
-  const wb = XLSX.utils.book_new();
+      const wb = XLSX.utils.book_new();
 
-  // 1. BUAT SHEET PERTAMA: DASHBOARD SUMMARY
-  const summaryRows = rawDashboardData.employees.map((e, idx) => ({
-    'No': idx + 1,
-    'Nama Karyawan': e.nama,
-    'Divisi': e.divisi,
-    'Target (Hr/Prd)': `${e.targetHarian} /hr (${e.targetBulanan})`,
-    'Poin Selesai': e.poinDiperoleh,
-    'Total Tugas': e.totalTugas,
-    'Capaian KPI (%)': `${e.kpiPersen}%`,
-    'Hari Kirim List': e.hariKirim,
-    'Belum Ubah Status': e.belumUbahStatus,
-    'Tidak Kirim List': e.tidakKirim,
-    'Status Capaian': e.statusCapaian
-  }));
+      // 1. Sheet Pertama: DASHBOARD SUMMARY
+      const summaryRows = rawDashboardData.employees.map((e, idx) => ({
+        'No': idx + 1,
+        'Nama Karyawan': e.nama,
+        'Divisi': e.divisi,
+        'Target (Hr/Prd)': `${e.targetHarian} /hr (${e.targetBulanan})`,
+        'Poin Selesai': e.poinDiperoleh,
+        'Total Tugas': e.totalTugas,
+        'Capaian KPI (%)': `${e.kpiPersen}%`,
+        'Hari Kirim List': e.hariKirim,
+        'Belum Ubah Status': e.belumUbahStatus,
+        'Tidak Kirim List': e.tidakKirim,
+        'Status Capaian': e.statusCapaian
+      }));
 
-  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'DASHBOARD');
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'DASHBOARD');
 
-  // 2. BUAT SHEET INDIVIDU UNTUK SETIAP KARYAWAN
-  rawDashboardData.employees.forEach(emp => {
-    const detailRows = [];
-    let curDate = '';
+      // 2. Sheet Individu: Setiap Karyawan (Format 11 Kolom Lengkap)
+      rawDashboardData.employees.forEach(emp => {
+        const detailRows = [];
+        let curDate = '';
 
-    (emp.tasks || []).forEach(t => {
-      const isNewDate = t.tanggal !== curDate;
-      if (isNewDate) curDate = t.tanggal;
+        (emp.tasks || []).forEach(t => {
+          const isNewDate = t.tanggal !== curDate;
+          if (isNewDate) curDate = t.tanggal;
 
-      const jamVal = t.jam || '';
-      const isSelesaiTime = jamVal >= '17:00';
+          const jamVal = t.jam || '';
+          const isSelesaiTime = jamVal >= '17:00';
 
-      detailRows.push({
-        'Tanggal': isNewDate ? t.tanggal : '',
-        'Jam Tercatat Masuk': (!isSelesaiTime && jamVal) ? jamVal : '',
-        'Jam Tercatat Selesai': (isSelesaiTime && jamVal) ? jamVal : '',
-        'Klien': t.klien || '-',
-        'To Do List / Pekerjaan': t.tugas,
-        'Qty': t.qty,
-        'Status Rekap': t.status,
-        'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
-        'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
-        'Target KPI': isNewDate ? emp.targetHarian : '',
-        'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
+          detailRows.push({
+            'Tanggal': isNewDate ? t.tanggal : '',
+            'Jam Tercatat Masuk': (!isSelesaiTime && jamVal) ? jamVal : '',
+            'Jam Tercatat Selesai': (isSelesaiTime && jamVal) ? jamVal : '',
+            'Klien': t.klien || '-',
+            'To Do List / Pekerjaan': t.tugas,
+            'Qty': t.qty,
+            'Status Rekap': t.status,
+            'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
+            'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
+            'Target KPI': isNewDate ? emp.targetHarian : '',
+            'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
+          });
+        });
+
+        const sheetName = emp.nama.slice(0, 30);
+        const wsDetail = XLSX.utils.json_to_sheet(detailRows, { origin: 'A5' });
+
+        XLSX.utils.sheet_add_aoa(wsDetail, [
+          [`REKAP TO DO LIST & KPI — ${emp.nama.toUpperCase()}`],
+          ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian],
+          ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
+          []
+        ], { origin: 'A1' });
+
+        XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
       });
-    });
 
-    // Batasi nama sheet maksimal 31 karakter (aturan Excel)
-    const sheetName = emp.nama.slice(0, 30);
-    const wsDetail = XLSX.utils.json_to_sheet(detailRows, { origin: 'A5' });
-
-    // Tambahkan Header Informasi
-    XLSX.utils.sheet_add_aoa(wsDetail, [
-      [`REKAP TO DO LIST & KPI — ${emp.nama.toUpperCase()}`],
-      ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian],
-      ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
-      []
-    ], { origin: 'A1' });
-
-    XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
-  });
-
-  const dateStr = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `Rekap_To_Do_List_dan_KPI_Tim_Gabungan_${dateStr}.xlsx`);
-}
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Rekap_To_Do_List_dan_KPI_Tim_Gabungan_${dateStr}.xlsx`);
+    }
 
     // =========================================================================
     // FITUR EKSPOR PDF (jsPDF + AutoTable)
@@ -735,8 +771,8 @@
       const days = rawDashboardData.workingDays || 22;
       const filter = rawDashboardData.filter;
       const periodLabel = (filter && filter.startDate && filter.endDate)
-        ? `${filter.startDate} s/d ${filter.endDate} (${days} Hari Kerja)`
-        : `Oktober (${days} Hari Kerja)`;
+        ? (filter.startDate === filter.endDate ? `Hari Ini: ${filter.startDate} (1 Hari Kerja)` : `${filter.startDate} s/d ${filter.endDate} (${days} Hari Kerja)`)
+        : `Bulan Penuh (${days} Hari Kerja)`;
 
       // Title & Header Info
       doc.setFontSize(16);
