@@ -109,7 +109,7 @@
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-    <!-- 1. DATE FILTER BAR (DIPERBARUI DENGAN PINTASAN HARI INI & BULAN PENUH) -->
+    <!-- DATE FILTER BAR -->
     <section class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-2 text-xs font-semibold text-slate-300">
         <i data-lucide="calendar-range" class="w-4 h-4 text-brand-400"></i>
@@ -176,6 +176,7 @@
           <div class="mt-3 w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
             <div id="cardPoinProgress" class="bg-brand-500 h-1.5 rounded-full transition-all duration-700" style="width: 0%"></div>
           </div>
+          <p class="text-[11px] text-indigo-400 font-semibold mt-2" id="cardMonthlyGoalRatio">Goal Bulanan Tim: 4.466 Poin</p>
         </div>
 
         <!-- CARD 2: AVG KPI -->
@@ -257,7 +258,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-base font-bold text-white">Rekapitulasi Kinerja Karyawan</h2>
-            <p class="text-xs text-slate-400">Rincian pencapaian target, pengiriman To Do List, dan status tugas</p>
+            <p class="text-xs text-slate-400">Rincian pencapaian target harian/periode dan sasaran pengingat (goals) bulanan</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
@@ -280,7 +281,7 @@
             <thead class="bg-slate-900/90 text-slate-300 uppercase tracking-wider font-semibold border-b border-slate-700/60">
               <tr>
                 <th class="py-3 px-4">Nama & Divisi</th>
-                <th class="py-3 px-4 text-center">Target (Hr / Periode)</th>
+                <th class="py-3 px-4 text-center">Target & Goal Bulanan</th>
                 <th class="py-3 px-4 text-right">Poin Diperoleh</th>
                 <th class="py-3 px-4">Capaian KPI (%)</th>
                 <th class="py-3 px-4 text-center">Kirim List</th>
@@ -303,11 +304,11 @@
 
   <script>
     const STORAGE_KEY = 'KPI_DASHBOARD_API_URL';
+    const HARI_KERJA_BULANAN = 22; // Standar acuan hari kerja efektif bulanan
     let rawDashboardData = null;
     let barChartInstance = null;
     let donutChartInstance = null;
 
-    // Helper untuk mengambil tanggal lokal hari ini dalam format YYYY-MM-DD
     function getTodayString() {
       const now = new Date();
       const y = now.getFullYear();
@@ -316,7 +317,6 @@
       return `${y}-${m}-${d}`;
     }
 
-    // Default saat halaman dibuka: input tanggal langsung terisi Hari Ini dan memuat data hari ini
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       const savedUrl = localStorage.getItem(STORAGE_KEY);
@@ -352,7 +352,6 @@
       loadDashboardData(start, end);
     }
 
-    // Pintasan Tombol: Hari Ini
     function setFilterToday() {
       const today = getTodayString();
       document.getElementById('filterStartDate').value = today;
@@ -360,7 +359,6 @@
       loadDashboardData(today, today);
     }
 
-    // Eksekusi Tombol: Terapkan Filter
     function applyDateFilter() {
       const start = document.getElementById('filterStartDate').value;
       const end = document.getElementById('filterEndDate').value;
@@ -375,14 +373,12 @@
       loadDashboardData(start, end);
     }
 
-    // Pintasan Tombol: Bulan Penuh
     function resetDateFilter() {
       document.getElementById('filterStartDate').value = '';
       document.getElementById('filterEndDate').value = '';
       loadDashboardData('', '');
     }
 
-    // Tombol refresh mengikuti rentang tanggal yang sedang aktif di input
     function triggerRefresh() {
       const start = document.getElementById('filterStartDate').value;
       const end = document.getElementById('filterEndDate').value;
@@ -444,9 +440,9 @@
 
     function populateDashboard(data) {
       const sum = data.summary;
-      const days = data.workingDays || 22;
+      const days = data.workingDays || HARI_KERJA_BULANAN;
 
-      // 3. PENYESUAIAN TEKS LABEL PERIODE DINAMIS
+      // Update Label Periode
       const badge = document.getElementById('periodBadge');
       if (data.filter && data.filter.startDate && data.filter.endDate) {
         if (data.filter.startDate === data.filter.endDate) {
@@ -460,9 +456,13 @@
 
       // Update Metric Cards
       document.getElementById('cardTotalPoin').innerText = (sum.totalPoin || 0).toLocaleString('id-ID');
-      document.getElementById('cardTargetRatio').innerText = `/ ${(sum.totalTarget || 0).toLocaleString('id-ID')} Target`;
+      document.getElementById('cardTargetRatio').innerText = `/ ${(sum.totalTarget || 0).toLocaleString('id-ID')} Target Periode`;
       const ratio = sum.totalTarget > 0 ? Math.min(100, Math.round((sum.totalPoin / sum.totalTarget) * 100)) : 0;
       document.getElementById('cardPoinProgress').style.width = `${ratio}%`;
+
+      // Hitung Total Goal Bulanan Tim (22 Hari Kerja)
+      const totalGoalBulananTim = (data.employees || []).reduce((acc, emp) => acc + (emp.targetHarian * HARI_KERJA_BULANAN), 0);
+      document.getElementById('cardMonthlyGoalRatio').innerText = `Goal Bulanan Tim: ${totalGoalBulananTim.toLocaleString('id-ID')} Poin (22 Hari)`;
 
       document.getElementById('cardAvgKpi').innerText = `${sum.avgKpiPercent || 0}%`;
       const tercapaiTim = (data.employees || []).filter(e => e.statusCapaian === 'TERCAPAI').length;
@@ -538,7 +538,8 @@
           y: {
             formatter: (val, opts) => {
               const emp = emps[opts.dataPointIndex];
-              return `${val} Poin (${emp.kpiPersen}%)`;
+              const goalBulanan = emp.targetHarian * HARI_KERJA_BULANAN;
+              return `${val} Poin (${emp.kpiPersen}%) | Goal Bln: ${goalBulanan}`;
             }
           }
         }
@@ -610,7 +611,8 @@
       const search = document.getElementById('searchInput').value.toLowerCase();
       const divFilter = document.getElementById('divisionFilter').value;
       const tbody = document.getElementById('tableBody');
-      const days = rawDashboardData.workingDays || 22;
+      const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
+      const isFiltered = days !== HARI_KERJA_BULANAN;
       tbody.innerHTML = '';
 
       let list = rawDashboardData.employees.filter(emp => {
@@ -632,6 +634,10 @@
           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
           : 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
 
+        // Target Bulanan Penuh (Goal 22 Hari)
+        const goalBulanan = emp.targetHarian * HARI_KERJA_BULANAN;
+        const goalBulananText = goalBulanan > 0 ? `Goal: ${goalBulanan} bln` : 'Goal: -';
+
         const row = document.createElement('tr');
         row.className = 'hover:bg-slate-800/40 transition';
         row.innerHTML = `
@@ -640,9 +646,9 @@
             <div class="text-slate-400 text-[11px]">${emp.divisi}</div>
           </td>
           <td class="py-3 px-4 text-center">
-            <span class="text-slate-200 font-semibold">${emp.targetHarian}</span>
-            <span class="text-slate-500 text-[11px]">/hr</span>
-            <span class="text-slate-400 text-[11px] block">(${emp.targetBulanan} target)</span>
+            <div class="text-slate-200 font-semibold">${emp.targetHarian} <span class="text-slate-500 text-[11px] font-normal">/hr</span></div>
+            ${isFiltered ? `<div class="text-[11px] text-slate-400">(${emp.targetBulanan} target)</div>` : ''}
+            <div class="text-[10px] text-indigo-400 font-bold tracking-tight">${goalBulananText}</div>
           </td>
           <td class="py-3 px-4 text-right">
             <span class="text-base font-bold text-white">${emp.poinDiperoleh}</span>
@@ -698,7 +704,9 @@
         'No': idx + 1,
         'Nama Karyawan': e.nama,
         'Divisi': e.divisi,
-        'Target (Hr/Prd)': `${e.targetHarian} /hr (${e.targetBulanan})`,
+        'Target Harian': e.targetHarian,
+        'Target Periode': e.targetBulanan,
+        'Goal Bulanan (22 Hari)': (e.targetHarian * HARI_KERJA_BULANAN) || '-',
         'Poin Selesai': e.poinDiperoleh,
         'Total Tugas': e.totalTugas,
         'Capaian KPI (%)': `${e.kpiPersen}%`,
@@ -743,7 +751,7 @@
 
         XLSX.utils.sheet_add_aoa(wsDetail, [
           [`REKAP TO DO LIST & KPI — ${emp.nama.toUpperCase()}`],
-          ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian],
+          ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian, 'Goal Bulanan', emp.targetHarian * HARI_KERJA_BULANAN],
           ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
           []
         ], { origin: 'A1' });
@@ -768,7 +776,7 @@
       const doc = new jsPDF('landscape', 'pt', 'a4');
 
       const sum = rawDashboardData.summary;
-      const days = rawDashboardData.workingDays || 22;
+      const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
       const filter = rawDashboardData.filter;
       const periodLabel = (filter && filter.startDate && filter.endDate)
         ? (filter.startDate === filter.endDate ? `Hari Ini: ${filter.startDate} (1 Hari Kerja)` : `${filter.startDate} s/d ${filter.endDate} (${days} Hari Kerja)`)
@@ -781,13 +789,13 @@
 
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin} | Target Tim: ${sum.totalTarget} | Rata-rata KPI: ${sum.avgKpiPercent}%`, 40, 58);
+      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin} | Target Periode: ${sum.totalTarget} | Rata-rata KPI: ${sum.avgKpiPercent}%`, 40, 58);
 
       const tableRows = rawDashboardData.employees.map((e, index) => [
         index + 1,
         e.nama,
         e.divisi,
-        `${e.targetHarian} /hr (${e.targetBulanan})`,
+        `${e.targetHarian}/hr (${e.targetBulanan} prd | Goal: ${e.targetHarian * HARI_KERJA_BULANAN})`,
         e.poinDiperoleh,
         `${e.kpiPersen}%`,
         `${e.hariKirim} / ${days}`,
@@ -798,7 +806,7 @@
 
       doc.autoTable({
         startY: 75,
-        head: [['No', 'Nama Karyawan', 'Divisi', 'Target (Hr/Prd)', 'Poin', 'Capaian', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
+        head: [['No', 'Nama Karyawan', 'Divisi', 'Target (Hr / Prd / Goal)', 'Poin', 'Capaian', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
         body: tableRows,
         theme: 'striped',
         styles: { fontSize: 8, cellPadding: 5 },
