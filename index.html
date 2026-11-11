@@ -80,12 +80,22 @@
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.025), 0 1px 2px rgba(0, 0, 0, 0.02);
       border-radius: 16px;
     }
-    input[type="date"]::-webkit-calendar-picker-indicator {
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="time"]::-webkit-calendar-picker-indicator {
       opacity: 0.55;
       cursor: pointer;
     }
-    input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="time"]::-webkit-calendar-picker-indicator:hover {
       opacity: 0.9;
+    }
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    th.sortable:hover {
+      background-color: #F2F2F7;
     }
   </style>
 </head>
@@ -114,7 +124,7 @@
       </div>
 
       <!-- ACTION CONTROLS -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center flex-wrap gap-2">
         <button onclick="exportToExcel()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-white hover:bg-apple-fill text-apple-ink border border-black/[0.1] text-xs font-medium transition active:scale-[0.98] shadow-2xs">
           <i data-lucide="sheet" class="w-3.5 h-3.5 text-[#1D6F42]"></i>
           <span>Excel</span>
@@ -125,7 +135,13 @@
           <span>PDF</span>
         </button>
 
-        <button id="configBtn" title="Pengaturan Endpoint" class="p-2 rounded-[10px] bg-white hover:bg-apple-fill text-apple-secondary hover:text-apple-ink border border-black/[0.1] transition active:scale-[0.98]">
+        <!-- TOMBOL SAKELAR SUARA AI & NOTIFIKASI -->
+        <button id="voiceToggleBtn" onclick="toggleVoiceAuto()" title="Aktifkan/Matikan Suara Notifikasi AI" class="px-3 py-1.5 rounded-[10px] bg-apple-blue/10 hover:bg-apple-blue/15 text-apple-blue border border-apple-blue/25 text-xs font-semibold flex items-center gap-1.5 transition active:scale-[0.98]">
+          <i data-lucide="volume-2" id="voiceToggleIcon" class="w-3.5 h-3.5"></i>
+          <span id="voiceToggleText">Suara AI: ON</span>
+        </button>
+
+        <button id="configBtn" title="Pengaturan API & Parameter Kerja" class="p-2 rounded-[10px] bg-white hover:bg-apple-fill text-apple-secondary hover:text-apple-ink border border-black/[0.1] transition active:scale-[0.98]">
           <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
         </button>
 
@@ -137,27 +153,111 @@
     </div>
   </header>
 
-  <!-- URL CONFIG MODAL (macOS Sheet Dialog Style) -->
+  <!-- MODAL KONFIGURASI & PARAMETER KERJA (Apple HIG Sheet Dialog Style) -->
   <div id="configModal" class="hidden fixed inset-0 z-50 bg-black/25 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white border border-black/[0.08] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-apple-ink">
-          Konfigurasi Web App URL
-        </h3>
+    <div class="bg-white border border-black/[0.08] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-black/[0.06] pb-3.5">
+        <div class="flex items-center gap-2">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4 text-apple-blue"></i>
+          <h3 class="text-sm font-semibold text-apple-ink">Pengaturan API & Parameter Kerja</h3>
+        </div>
         <button onclick="toggleConfigModal()" class="w-6 h-6 rounded-full bg-apple-fill text-apple-secondary hover:text-apple-ink flex items-center justify-center transition">
           <i data-lucide="x" class="w-3.5 h-3.5"></i>
         </button>
       </div>
-      <p class="text-xs text-apple-secondary leading-relaxed">
-        Tempelkan URL deployment Google Apps Script Anda (berakhiran <code class="px-1 py-0.5 rounded bg-apple-fill text-apple-ink font-mono text-[11px]">/exec</code>):
-      </p>
-      <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 rounded-[10px] bg-apple-fill border border-transparent focus:border-apple-blue focus:bg-white text-xs text-apple-ink placeholder-apple-tertiary focus:outline-none transition" />
-      <div class="flex justify-end gap-2 pt-2">
+
+      <div class="overflow-y-auto space-y-5 pr-1 flex-1">
+        <!-- 1. Endpoint URL -->
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-apple-ink block">
+            URL Web App Google Apps Script (<code class="px-1 py-0.5 rounded bg-apple-fill text-apple-blue font-mono text-[11px]">.../exec</code>)
+          </label>
+          <input type="url" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 rounded-[10px] bg-apple-fill border border-transparent focus:border-apple-blue focus:bg-white text-xs text-apple-ink placeholder-apple-tertiary focus:outline-none transition" />
+        </div>
+
+        <!-- 2. Jumlah Hari Kerja Efektif Bulanan -->
+        <div class="p-3.5 rounded-xl bg-[#FAFAFC] border border-black/[0.06] space-y-2">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <label class="text-xs font-semibold text-apple-ink block">Standar Hari Kerja Bulanan</label>
+              <span class="text-[11px] text-apple-secondary">Sesuaikan jika bulan ini ada cuti bersama / libur nasional</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input type="number" id="workDaysInput" min="1" max="31" value="22" class="w-16 bg-white border border-black/[0.12] rounded-[8px] px-2.5 py-1.5 text-xs font-semibold text-center text-apple-blue focus:outline-none focus:border-apple-blue tabular-nums" />
+              <span class="text-xs text-apple-secondary font-medium">Hari</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Target Harian Kustom per Karyawan (Override) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <label class="text-xs font-semibold text-apple-ink block">Target Harian Kustom per Karyawan (Opsional)</label>
+              <span class="text-[11px] text-apple-secondary">Kosongkan jika mengikuti standar target divisi di Sheet ADMIN</span>
+            </div>
+            <button onclick="resetCustomTargets()" class="text-[11px] text-apple-red hover:underline font-medium shrink-0">Reset Target</button>
+          </div>
+          <div id="customTargetContainer" class="divide-y divide-black/[0.05] bg-[#FAFAFC] border border-black/[0.06] rounded-xl max-h-44 overflow-y-auto px-3.5 py-1 text-xs">
+            <p class="py-6 text-center text-apple-secondary text-xs">Muat data terlebih dahulu untuk melihat daftar staf.</p>
+          </div>
+        </div>
+
+        <!-- 4. PENGATURAN NARATOR AI GEMINI & PENGINGAT OTOMATIS (AMAN VIA NETLIFY) -->
+        <div class="p-4 rounded-xl bg-[#FAFAFC] border border-apple-blue/20 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-apple-ink flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-4 h-4 text-apple-blue"></i> Narator Suara AI Gemini & Pengingat
+            </label>
+            <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-[#34C759]/15 text-[#1D8338] border border-[#34C759]/30 font-semibold">🔒 Netlify Secured</span>
+          </div>
+
+          <!-- Pilihan Karakter Suara Gemini & Jam Pengingat -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div class="sm:col-span-1 space-y-1">
+              <label class="text-[11px] text-apple-secondary block">Karakter Narator</label>
+              <select id="geminiVoiceSelect" class="w-full bg-white border border-black/[0.12] rounded-[8px] px-2.5 py-1.5 text-xs text-apple-ink focus:outline-none focus:border-apple-blue transition">
+                <option value="Aoede">Aoede (Wanita - Elegan)</option>
+                <option value="Puck">Puck (Pria - Energik)</option>
+                <option value="Kore">Kore (Wanita - Kalem)</option>
+                <option value="Fenrir">Fenrir (Pria - Tegas)</option>
+                <option value="Charon">Charon (Pria - Formal)</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[11px] text-apple-secondary block">Jam Ingat Pagi</label>
+              <input type="time" id="morningReminderTime" value="09:30" class="w-full bg-white border border-black/[0.12] rounded-[8px] px-2.5 py-1.5 text-xs text-apple-ink focus:outline-none focus:border-apple-blue tabular-nums" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-[11px] text-apple-secondary block">Jam Evaluasi Sore</label>
+              <input type="time" id="afternoonReminderTime" value="16:30" class="w-full bg-white border border-black/[0.12] rounded-[8px] px-2.5 py-1.5 text-xs text-apple-ink focus:outline-none focus:border-apple-blue tabular-nums" />
+            </div>
+          </div>
+
+          <!-- Tombol Uji Coba / Simulasi Langsung -->
+          <div class="pt-2.5 border-t border-black/[0.06] flex flex-wrap items-center justify-between gap-2">
+            <span class="text-[11px] text-apple-secondary">Uji Simulasi Pop-Up & Suara:</span>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="triggerMorningReminder(true)" class="px-2.5 py-1 rounded-[8px] bg-apple-blue/10 hover:bg-apple-blue/20 text-apple-blue border border-apple-blue/20 text-[11px] font-semibold transition">
+                ⏰ Tes Pagi
+              </button>
+              <button type="button" onclick="triggerAfternoonReminder(true)" class="px-2.5 py-1 rounded-[8px] bg-[#FF9500]/15 hover:bg-[#FF9500]/25 text-[#B25000] border border-[#FF9500]/30 text-[11px] font-semibold transition">
+                ⚠️ Tes Sore
+              </button>
+              <button type="button" onclick="triggerCelebrationPreview()" class="px-2.5 py-1 rounded-[8px] bg-[#34C759]/15 hover:bg-[#34C759]/25 text-[#1D8338] border border-[#34C759]/30 text-[11px] font-semibold transition">
+                🎉 Tes Selebrasi
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-black/[0.06]">
         <button onclick="toggleConfigModal()" class="px-3.5 py-1.5 rounded-[10px] text-xs font-medium text-apple-secondary hover:text-apple-ink transition">
           Batal
         </button>
-        <button onclick="saveApiUrl()" class="px-4 py-1.5 rounded-[10px] bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-medium transition">
-          Simpan
+        <button onclick="saveApiUrl()" class="px-4 py-1.5 rounded-[10px] bg-apple-blue hover:bg-apple-blueHover text-white text-xs font-medium transition shadow-2xs">
+          Simpan Parameter
         </button>
       </div>
     </div>
@@ -230,31 +330,32 @@
             </div>
             <div class="flex items-baseline gap-1.5 tabular-nums">
               <span class="text-2xl sm:text-[28px] font-semibold tracking-tight text-apple-ink" id="cardTotalPoin">0</span>
-              <span class="text-xs text-apple-secondary font-normal" id="cardTargetRatio">/ 0 Goal Bln</span>
+              <span class="text-xs text-apple-secondary font-normal" id="cardTargetRatio">/ 0 target periode</span>
             </div>
           </div>
           <div class="mt-4">
             <div class="w-full bg-apple-fill rounded-full h-1.5 overflow-hidden">
               <div id="cardPoinProgress" class="bg-apple-blue h-1.5 rounded-full transition-all duration-700" style="width: 0%"></div>
             </div>
-            <p class="text-[11px] text-apple-secondary mt-2 tabular-nums" id="cardPeriodTargetNote">Target Periode: 0 Poin</p>
+            <p class="text-[11px] text-apple-secondary mt-2 tabular-nums" id="cardPeriodTargetNote">Goal Bulanan (22 Hr): 0 poin</p>
           </div>
         </div>
 
         <!-- CARD 2: AVG KPI -->
-        <div class="apple-card p-5 flex flex-col justify-between">
+        <div onclick="setQuickFilter('achieved')" class="apple-card p-5 flex flex-col justify-between cursor-pointer hover:border-apple-green/40 transition" title="Klik untuk filter karyawan yang mencapai Goal Bulanan">
           <div>
             <div class="flex items-center justify-between text-apple-secondary mb-2">
               <span class="text-xs font-medium">Rata-rata Capaian KPI</span>
               <i data-lucide="activity" class="w-4 h-4 text-apple-green"></i>
             </div>
-            <div class="flex items-baseline gap-2 tabular-nums">
+            <div class="flex items-baseline gap-2 tabular-nums flex-wrap">
               <span class="text-2xl sm:text-[28px] font-semibold tracking-tight text-apple-ink" id="cardAvgKpi">0%</span>
+              <span class="text-xs text-apple-secondary font-medium" id="cardPeriodKpi">(0% periode)</span>
               <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#34C759]/12 text-[#1D8338]" id="cardTercapaiCount">0 Tercapai</span>
             </div>
           </div>
           <p class="text-[11px] text-apple-secondary mt-4">
-            Dari <span id="cardTotalKaryawan" class="font-semibold text-apple-ink tabular-nums">0</span> staf aktif (Acuan 22 Hari)
+            Dari <span id="cardTotalKaryawan" class="font-semibold text-apple-ink tabular-nums">0</span> staf aktif (<span id="cardWorkDaysLabel">22</span> Hari Kerja)
           </p>
         </div>
 
@@ -279,7 +380,7 @@
         </div>
 
         <!-- CARD 4: PENDING TASKS -->
-        <div class="apple-card p-5 flex flex-col justify-between">
+        <div onclick="setQuickFilter('pending')" class="apple-card p-5 flex flex-col justify-between cursor-pointer hover:border-apple-orange/40 transition" title="Klik untuk memfilter karyawan dengan tugas menggantung">
           <div>
             <div class="flex items-center justify-between text-apple-secondary mb-2">
               <span class="text-xs font-medium">Belum Rubah Status</span>
@@ -290,7 +391,10 @@
               <span class="text-xs text-apple-secondary">Tugas</span>
             </div>
           </div>
-          <p class="text-[11px] text-apple-secondary mt-4">Status masih 'On Progress' atau 'Belum'</p>
+          <p class="text-[11px] text-apple-secondary mt-4 flex items-center justify-between">
+            <span>Status masih 'On Progress' / 'Belum'</span>
+            <span class="text-apple-blue font-medium">Lihat →</span>
+          </p>
         </div>
 
       </section>
@@ -302,7 +406,7 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 class="text-sm font-semibold text-apple-ink tracking-tight">Perolehan Poin vs Goal Bulanan</h2>
-              <p class="text-xs text-apple-secondary">Perbandingan capaian aktual setiap staf terhadap sasaran 22 hari kerja</p>
+              <p class="text-xs text-apple-secondary">Klik pada batang grafik untuk melihat rincian tugas karyawan</p>
             </div>
             <span id="chartTag" class="text-[11px] px-2.5 py-1 rounded-full bg-apple-fill text-apple-secondary font-medium self-start sm:self-auto">
               Benchmark 22 Hari
@@ -322,12 +426,12 @@
         </div>
       </section>
 
-      <!-- 3. DETAILED TABLE (Dengan Dual Track Progress Bar Bertingkat) -->
-      <section class="apple-card overflow-hidden">
+      <!-- 3. DETAILED TABLE (Dengan Quick Filter Pills & Dual Track Progress Bar) -->
+      <section class="apple-card overflow-hidden" id="employeeTableSection">
         <div class="p-5 sm:p-6 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-sm font-semibold text-apple-ink tracking-tight">Tabel Kinerja Karyawan</h2>
-            <p class="text-xs text-apple-secondary mt-0.5">Membandingkan persentase capaian periode aktif dan sasaran goal bulanan (22 hari)</p>
+            <p class="text-xs text-apple-secondary mt-0.5">Klik baris nama karyawan untuk membuka rincian daftar tugas harian (★ = Target Kustom Aktif)</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2.5">
@@ -344,18 +448,49 @@
           </div>
         </div>
 
+        <!-- QUICK FILTER PILLS (Apple HIG Style) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 bg-[#FAFAFC] border-b border-black/[0.06] text-xs">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-apple-secondary font-medium mr-1">Filter Cepat:</span>
+            <button onclick="setQuickFilter('all')" id="qf-all" class="qf-btn active px-3 py-1 rounded-full bg-apple-blue text-white font-semibold transition shadow-2xs">
+              Semua Karyawan
+            </button>
+            <button onclick="setQuickFilter('pending')" id="qf-pending" class="qf-btn px-3 py-1 rounded-full bg-white text-[#B25000] border border-[#FF9500]/30 hover:bg-[#FF9500]/10 font-medium transition">
+              ⚠️ Ada Tugas Menggantung
+            </button>
+            <button onclick="setQuickFilter('achieved')" id="qf-achieved" class="qf-btn px-3 py-1 rounded-full bg-white text-[#1D8338] border border-[#34C759]/30 hover:bg-[#34C759]/10 font-medium transition">
+              ✅ Goal Bulanan Tercapai
+            </button>
+          </div>
+          <span id="activeFilterCount" class="text-[11px] text-apple-secondary font-medium tabular-nums"></span>
+        </div>
+
         <!-- COMPACT TABLE -->
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-[#FAFAFC] text-apple-secondary font-medium border-b border-black/[0.06] text-[11px] leading-tight">
               <tr>
-                <th class="py-3 px-4 font-semibold text-apple-ink">Nama & Divisi</th>
-                <th class="py-3 px-2 text-center font-semibold text-apple-ink">Target &<br><span class="text-[10px] text-apple-secondary font-normal">Goal Bln</span></th>
-                <th class="py-3 px-2.5 text-right font-semibold text-apple-ink">Poin<br><span class="text-[10px] text-apple-secondary font-normal">Selesai</span></th>
-                <th class="py-3 px-3 text-center font-semibold text-apple-ink">Capaian KPI<br><span class="text-[10px] text-apple-blue font-normal">Periode & Goal 22 Hr</span></th>
-                <th class="py-3 px-2 text-center font-semibold text-apple-ink">Kirim<br><span class="text-[10px] text-apple-secondary font-normal">List</span></th>
-                <th class="py-3 px-2 text-center font-semibold text-apple-ink">Belum Ubah<br><span class="text-[10px] text-apple-secondary font-normal">Status</span></th>
-                <th class="py-3 px-2 text-center font-semibold text-apple-ink">Tidak<br><span class="text-[10px] text-apple-secondary font-normal">Kirim</span></th>
+                <th onclick="sortTable('nama')" class="sortable py-3 px-4 font-semibold text-apple-ink">
+                  Nama & Divisi <span id="sort-nama" class="text-apple-tertiary ml-0.5"></span>
+                </th>
+                <th onclick="sortTable('targetHarian')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
+                  Target &<br><span class="text-[10px] text-apple-secondary font-normal">Goal Bln</span> <span id="sort-targetHarian" class="text-apple-tertiary"></span>
+                </th>
+                <th onclick="sortTable('poinDiperoleh')" class="sortable py-3 px-2.5 text-right font-semibold text-apple-ink">
+                  Poin<br><span class="text-[10px] text-apple-secondary font-normal">Selesai</span> <span id="sort-poinDiperoleh" class="text-apple-tertiary"></span>
+                </th>
+                <th onclick="sortTable('kpiPersenBulanan')" class="sortable py-3 px-3 text-center font-semibold text-apple-ink">
+                  Capaian KPI <span id="sort-kpiPersenBulanan" class="text-apple-blue">↓</span><br><span class="text-[10px] text-apple-blue font-normal" id="thGoalSubLabel">Periode & Goal Bulanan</span>
+                </th>
+                <th onclick="sortTable('hariKirim')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
+                  Kirim<br><span class="text-[10px] text-apple-secondary font-normal">List</span> <span id="sort-hariKirim" class="text-apple-tertiary"></span>
+                </th>
+                <th onclick="sortTable('belumUbahStatus')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
+                  Belum Ubah<br><span class="text-[10px] text-apple-secondary font-normal">Status</span> <span id="sort-belumUbahStatus" class="text-apple-tertiary"></span>
+                </th>
+                <th onclick="sortTable('tidakKirim')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
+                  Tidak<br><span class="text-[10px] text-apple-secondary font-normal">Kirim</span> <span id="sort-tidakKirim" class="text-apple-tertiary"></span>
+                </th>
                 <th class="py-3 px-3 text-center font-semibold text-apple-ink">Status</th>
               </tr>
             </thead>
@@ -371,14 +506,93 @@
 
   </main>
 
+  <!-- MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN (Apple HIG Sheet Style) -->
+  <div id="detailModal" onclick="handleModalBackdropClick(event)" class="fixed inset-0 z-50 hidden bg-black/30 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-black/[0.08] rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-4 bg-[#FAFAFC]">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h3 id="modalEmpName" class="text-base sm:text-lg font-semibold text-apple-ink tracking-tight">Nama Karyawan</h3>
+            <span id="modalEmpDiv" class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-apple-blue/10 text-apple-blue">Divisi</span>
+          </div>
+          <p id="modalEmpSummary" class="text-xs text-apple-secondary mt-1 tabular-nums">Ringkasan capaian periode aktif</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportSingleEmployeeExcel()" class="px-3 py-1.5 rounded-[10px] bg-white hover:bg-apple-fill text-apple-ink border border-black/[0.1] text-xs font-medium flex items-center gap-1.5 transition active:scale-[0.98] shadow-2xs">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-[#1D6F42]"></i> Excel Individu
+          </button>
+          <button onclick="exportSingleEmployeePDF()" class="px-3 py-1.5 rounded-[10px] bg-white hover:bg-apple-fill text-apple-ink border border-black/[0.1] text-xs font-medium flex items-center gap-1.5 transition active:scale-[0.98] shadow-2xs">
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-apple-red"></i> PDF Individu
+          </button>
+          <button onclick="closeDetailModal()" class="w-8 h-8 rounded-full bg-apple-fill hover:bg-apple-border text-apple-secondary hover:text-apple-ink flex items-center justify-center transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Filter Bar -->
+      <div class="px-5 py-3.5 bg-white border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <select id="modalStatusFilter" onchange="renderModalTasks()" class="bg-apple-fill border border-transparent focus:border-apple-blue focus:bg-white rounded-[10px] px-3 py-1.5 text-xs font-medium text-apple-ink focus:outline-none transition">
+            <option value="ALL">Semua Status Tugas</option>
+            <option value="Selesai">✅ Selesai</option>
+            <option value="Belum merubah status">⏳ Belum Merubah Status (Pending)</option>
+            <option value="Cancel">❌ Cancel</option>
+          </select>
+          <div class="relative">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-apple-secondary absolute left-3 top-2"></i>
+            <input type="text" id="modalTaskSearch" oninput="renderModalTasks()" placeholder="Cari nama tugas atau klien..." class="bg-apple-fill border border-transparent focus:border-apple-blue focus:bg-white rounded-[10px] pl-8 pr-3 py-1.5 text-xs text-apple-ink placeholder-apple-tertiary w-56 sm:w-64 focus:outline-none transition" />
+          </div>
+        </div>
+        <div id="modalTaskCount" class="text-xs text-apple-secondary font-medium tabular-nums">Menampilkan 0 tugas</div>
+      </div>
+
+      <!-- Modal Body (Daftar Tugas) -->
+      <div class="overflow-y-auto flex-1">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 bg-[#FAFAFC] border-b border-black/[0.06] text-[11px] font-semibold text-apple-secondary z-10">
+            <tr>
+              <th class="py-2.5 px-4">Tanggal</th>
+              <th class="py-2.5 px-3">Jam</th>
+              <th class="py-2.5 px-3">Klien</th>
+              <th class="py-2.5 px-4">Deskripsi To Do List</th>
+              <th class="py-2.5 px-3 text-center">Qty</th>
+              <th class="py-2.5 px-3 text-right">Poin</th>
+              <th class="py-2.5 px-4 text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="modalTaskBody" class="divide-y divide-black/[0.05] text-xs text-apple-ink tabular-nums"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING NOTIFICATION TOAST CONTAINER (POJOK KANAN ATAS) -->
+  <div id="notificationToastContainer" class="fixed top-5 right-5 z-[60] flex flex-col gap-3 max-w-md w-full pointer-events-none px-4 sm:px-0"></div>
+
   <script>
+    // =========================================================================
+    // DEKLARASI VARIABEL GLOBAL & PARAMETER DINAMIS (LOCAL STORAGE)
+    // =========================================================================
     const STORAGE_KEY = 'KPI_DASHBOARD_API_URL';
-    const HARI_KERJA_BULANAN = 22;
+    const WORK_DAYS_KEY = 'KPI_DASHBOARD_WORK_DAYS';
+    const CUSTOM_TARGETS_KEY = 'KPI_DASHBOARD_CUSTOM_TARGETS';
+
+    // Membaca jumlah hari kerja & target kustom dari localStorage (Default: 22 hari)
+    let HARI_KERJA_BULANAN = parseInt(localStorage.getItem(WORK_DAYS_KEY), 10) || 22;
+    let customEmployeeTargets = JSON.parse(localStorage.getItem(CUSTOM_TARGETS_KEY) || '{}');
+
     let rawDashboardData = null;
+    let processedEmployees = [];
     let barChartInstance = null;
     let donutChartInstance = null;
 
-    // Helper Aman: Mengisi teks tanpa risiko crash jika ID tidak sengaja terhapus
+    // State untuk Quick Filter, Sorting, & Modal Drill-down
+    let currentQuickFilter = 'all';
+    let currentSort = { key: 'kpiPersenBulanan', asc: false };
+    let selectedEmployee = null;
+
     function setText(id, text) {
       const el = document.getElementById(id);
       if (el) el.innerText = text;
@@ -402,6 +616,9 @@
       if (startEl) startEl.value = today;
       if (endEl) endEl.value = today;
 
+      const workDaysEl = document.getElementById('workDaysInput');
+      if (workDaysEl) workDaysEl.value = HARI_KERJA_BULANAN;
+
       if (savedUrl) {
         const apiIn = document.getElementById('apiUrlInput');
         if (apiIn) apiIn.value = savedUrl;
@@ -414,11 +631,59 @@
       
       const cfgBtn = document.getElementById('configBtn');
       if (cfgBtn) cfgBtn.addEventListener('click', toggleConfigModal);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDetailModal();
+      });
     });
 
+    // =========================================================================
+    // PENGATURAN MODAL KONFIGURASI & TARGET KUSTOM PER KARYAWAN
+    // =========================================================================
     function toggleConfigModal() {
       const modal = document.getElementById('configModal');
-      if (modal) modal.classList.toggle('hidden');
+      if (!modal) return;
+      const isHidden = modal.classList.contains('hidden');
+      if (isHidden) {
+        const workDaysEl = document.getElementById('workDaysInput');
+        if (workDaysEl) workDaysEl.value = HARI_KERJA_BULANAN;
+        renderCustomTargetInputs();
+      }
+      modal.classList.toggle('hidden');
+      lucide.createIcons();
+    }
+
+    function renderCustomTargetInputs() {
+      const container = document.getElementById('customTargetContainer');
+      if (!container) return;
+      if (!rawDashboardData || !rawDashboardData.employees || rawDashboardData.employees.length === 0) {
+        container.innerHTML = `<p class="py-6 text-center text-apple-secondary text-xs">Muat data terlebih dahulu untuk melihat daftar staf.</p>`;
+        return;
+      }
+
+      container.innerHTML = rawDashboardData.employees.map(emp => {
+        const baseTarget = emp.baseTargetHarian !== undefined ? emp.baseTargetHarian : emp.targetHarian;
+        const customVal = customEmployeeTargets[emp.nama] !== undefined ? customEmployeeTargets[emp.nama] : '';
+        return `
+          <div class="py-2.5 flex items-center justify-between gap-2">
+            <div>
+              <span class="font-semibold text-apple-ink">${emp.nama}</span>
+              <span class="text-[11px] text-apple-secondary ml-1">(${emp.divisi} · Default: ${baseTarget}/hr)</span>
+            </div>
+            <input type="number" step="0.5" min="0"
+              data-emp-name="${emp.nama}"
+              value="${customVal}"
+              placeholder="${baseTarget}"
+              class="custom-target-input w-20 bg-white border border-black/[0.12] rounded-[8px] px-2.5 py-1 text-right text-xs font-semibold text-[#B25000] placeholder-apple-tertiary focus:outline-none focus:border-apple-blue tabular-nums transition" />
+          </div>
+        `;
+      }).join('');
+    }
+
+    function resetCustomTargets() {
+      customEmployeeTargets = {};
+      localStorage.removeItem(CUSTOM_TARGETS_KEY);
+      renderCustomTargetInputs();
     }
 
     function saveApiUrl() {
@@ -428,11 +693,39 @@
         alert('Silakan masukkan Web App URL Apps Script Anda.');
         return;
       }
+
+      // Simpan konfigurasi Karakter Suara Gemini & jadwal pengingat
+      saveGeminiConfigFromModal();
+
+      const prevUrl = localStorage.getItem(STORAGE_KEY);
       localStorage.setItem(STORAGE_KEY, val);
+
+      // Simpan Hari Kerja Bulanan Dinamis
+      const workDaysEl = document.getElementById('workDaysInput');
+      const inputDays = workDaysEl ? parseInt(workDaysEl.value, 10) : 22;
+      HARI_KERJA_BULANAN = (inputDays && inputDays > 0) ? inputDays : 22;
+      localStorage.setItem(WORK_DAYS_KEY, HARI_KERJA_BULANAN);
+
+      // Simpan Override Target Harian per Karyawan
+      const newCustomTargets = {};
+      document.querySelectorAll('.custom-target-input').forEach(el => {
+        const empName = el.getAttribute('data-emp-name');
+        const numVal = el.value.trim();
+        if (numVal !== '' && !isNaN(numVal)) {
+          newCustomTargets[empName] = parseFloat(numVal);
+        }
+      });
+      customEmployeeTargets = newCustomTargets;
+      localStorage.setItem(CUSTOM_TARGETS_KEY, JSON.stringify(customEmployeeTargets));
+
       toggleConfigModal();
-      const start = document.getElementById('filterStartDate')?.value || '';
-      const end = document.getElementById('filterEndDate')?.value || '';
-      loadDashboardData(start, end);
+
+      // Jika data sudah ada dan URL tidak berubah, langsung hitung ulang secara instan tanpa fetch ulang ke server
+      if (rawDashboardData && prevUrl === val) {
+        populateDashboard(rawDashboardData);
+      } else {
+        triggerRefresh();
+      }
     }
 
     function setFilterToday() {
@@ -524,61 +817,106 @@
       }
     }
 
+    // =========================================================================
+    // KALKULASI METRIK DINAMIS (HARI KERJA BULANAN & TARGET KUSTOM)
+    // =========================================================================
     function populateDashboard(data) {
       const sum = data.summary || {};
-      const days = data.workingDays || HARI_KERJA_BULANAN;
 
-      // Kalkulasi KPI Ganda (Periode & Goal Bulanan Penuh)
-      let totalGoalBulananTim = 0;
-      (data.employees || []).forEach(emp => {
-        emp.goalBulanan = emp.targetHarian * HARI_KERJA_BULANAN;
-        totalGoalBulananTim += emp.goalBulanan;
+      // Jika mode Bulan Penuh (tanpa filter tanggal), gunakan HARI_KERJA_BULANAN dinamis
+      const isDateFiltered = Boolean(data.filter && data.filter.startDate && data.filter.endDate);
+      const days = isDateFiltered ? (data.workingDays || 1) : HARI_KERJA_BULANAN;
 
-        // Persentase Goal Bulanan (22 Hari)
-        emp.kpiPersenBulanan = emp.goalBulanan > 0
-          ? Math.round((emp.poinDiperoleh / emp.goalBulanan) * 1000) / 10
-          : 0;
-
-        // Persentase Periode Aktif / Harian
-        emp.kpiPersenPeriode = emp.targetBulanan > 0
-          ? Math.round((emp.poinDiperoleh / emp.targetBulanan) * 1000) / 10
-          : 0;
-
-        emp.statusCapaianBulanan = emp.kpiPersenBulanan >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
-      });
-
+      // Update Period Badge & Labels
       const badge = document.getElementById('periodBadge');
       if (badge) {
-        if (data.filter && data.filter.startDate && data.filter.endDate) {
-          badge.innerText = data.filter.startDate === data.filter.endDate
-            ? `Hari Ini · ${data.filter.startDate}`
-            : `${data.filter.startDate} — ${data.filter.endDate} (${days} Hr)`;
+        if (isDateFiltered) {
+          if (data.filter.startDate === data.filter.endDate) {
+            badge.innerText = `Hari Ini · ${data.filter.startDate} (1 Hari Kerja)`;
+          } else {
+            badge.innerText = `${data.filter.startDate} s/d ${data.filter.endDate} (${days} Hari Kerja)`;
+          }
         } else {
-          badge.innerText = `Bulan Penuh · ${days} Hari Kerja`;
+          badge.innerText = `Bulan Penuh (${HARI_KERJA_BULANAN} Hari Kerja)`;
         }
       }
 
+      setText('cardWorkDaysLabel', HARI_KERJA_BULANAN);
+      setText('chartTag', `Benchmark ${HARI_KERJA_BULANAN} Hari`);
+      setText('thGoalSubLabel', `Periode & Goal ${HARI_KERJA_BULANAN} Hr`);
+
+      // Olah metrik karyawan dengan Hari Kerja Dinamis & Target Kustom
+      let totalGoalBulananTim = 0;
+      let totalTargetPeriodeTim = 0;
+
+      processedEmployees = (data.employees || []).map(emp => {
+        const baseTargetHarian = emp.baseTargetHarian !== undefined ? emp.baseTargetHarian : (emp.targetHarian || 0);
+        const isCustomTarget = customEmployeeTargets[emp.nama] !== undefined;
+        const targetHarianEfektif = isCustomTarget ? customEmployeeTargets[emp.nama] : baseTargetHarian;
+
+        const goalBulanan = Math.round(targetHarianEfektif * HARI_KERJA_BULANAN * 10) / 10;
+        const targetPeriode = Math.round(targetHarianEfektif * days * 10) / 10;
+
+        totalGoalBulananTim += goalBulanan;
+        totalTargetPeriodeTim += targetPeriode;
+
+        const kpiGoalPersen = goalBulanan > 0
+          ? Math.round((emp.poinDiperoleh / goalBulanan) * 1000) / 10
+          : 0;
+        const kpiPeriodePersen = targetPeriode > 0
+          ? Math.round((emp.poinDiperoleh / targetPeriode) * 1000) / 10
+          : 0;
+
+        const tidakKirimDinamis = Math.max(0, days - (emp.hariKirim || 0));
+        const statusGoal = kpiGoalPersen >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
+
+        emp.baseTargetHarian = baseTargetHarian;
+        emp.targetHarian = targetHarianEfektif;
+        emp.isCustomTarget = isCustomTarget;
+        emp.goalBulanan = goalBulanan;
+        emp.targetPeriode = targetPeriode;
+        emp.targetBulanan = targetPeriode;
+        emp.kpiGoalPersen = kpiGoalPersen;
+        emp.kpiPeriodePersen = kpiPeriodePersen;
+        emp.kpiPersenBulanan = kpiGoalPersen;
+        emp.kpiPersenPeriode = kpiPeriodePersen;
+        emp.tidakKirim = tidakKirimDinamis;
+        emp.statusGoal = statusGoal;
+        emp.statusCapaianBulanan = statusGoal;
+
+        return emp;
+      });
+
+      const avgGoalKpi = processedEmployees.length > 0
+        ? Math.round((processedEmployees.reduce((a, b) => a + b.kpiGoalPersen, 0) / processedEmployees.length) * 10) / 10
+        : 0;
+      const avgPeriodKpi = processedEmployees.length > 0
+        ? Math.round((processedEmployees.reduce((a, b) => a + b.kpiPeriodePersen, 0) / processedEmployees.length) * 10) / 10
+        : 0;
+
+      const complianceRateDinamis = (processedEmployees.length > 0 && days > 0)
+        ? Math.round((processedEmployees.reduce((acc, curr) => acc + (curr.hariKirim || 0), 0) / (processedEmployees.length * days)) * 1000) / 10
+        : (sum.complianceRate || 0);
+
+      // Populate Top Cards
       setText('cardTotalPoin', (sum.totalPoin || 0).toLocaleString('id-ID'));
-      setText('cardTargetRatio', `/ ${totalGoalBulananTim.toLocaleString('id-ID')} Goal Bln`);
-      
+      setText('cardTargetRatio', `/ ${totalTargetPeriodeTim.toLocaleString('id-ID')} target periode`);
+      setText('cardPeriodTargetNote', `Goal Bulanan (${HARI_KERJA_BULANAN} Hr): ${totalGoalBulananTim.toLocaleString('id-ID')} poin`);
+
       const ratioBulanan = totalGoalBulananTim > 0 ? Math.min(100, Math.round(((sum.totalPoin || 0) / totalGoalBulananTim) * 100)) : 0;
       const progressEl = document.getElementById('cardPoinProgress');
       if (progressEl) progressEl.style.width = `${ratioBulanan}%`;
 
-      setText('cardPeriodTargetNote', `Target Periode (${days} Hr): ${(sum.totalTarget || 0).toLocaleString('id-ID')} Poin`);
+      setText('cardAvgKpi', `${avgGoalKpi}%`);
+      setText('cardPeriodKpi', `(${avgPeriodKpi}% periode)`);
 
-      const avgKpiGoal = (data.employees || []).length > 0
-        ? Math.round((data.employees.reduce((acc, curr) => acc + curr.kpiPersenBulanan, 0) / data.employees.length) * 10) / 10
-        : 0;
-      setText('cardAvgKpi', `${avgKpiGoal}%`);
-
-      const tercapaiGoalCount = (data.employees || []).filter(e => e.statusCapaianBulanan === 'TERCAPAI').length;
+      const tercapaiGoalCount = processedEmployees.filter(e => e.statusCapaianBulanan === 'TERCAPAI').length;
       setText('cardTercapaiCount', `${tercapaiGoalCount} Tercapai`);
-      setText('cardTotalKaryawan', sum.totalKaryawan || 0);
+      setText('cardTotalKaryawan', sum.totalKaryawan || processedEmployees.length);
 
-      setText('cardCompliance', `${sum.complianceRate || 0}%`);
+      setText('cardCompliance', `${complianceRateDinamis}%`);
       const compProg = document.getElementById('cardComplianceProgress');
-      if (compProg) compProg.style.width = `${Math.min(100, sum.complianceRate || 0)}%`;
+      if (compProg) compProg.style.width = `${Math.min(100, complianceRateDinamis)}%`;
 
       setText('cardPendingTasks', (sum.totalPendingTasks || 0).toLocaleString('id-ID'));
 
@@ -598,6 +936,9 @@
 
       renderCharts(data);
       renderTable();
+
+      // Deteksi otomatis pencapaian KPI >= 100%
+      checkKpiCelebrations(processedEmployees);
     }
 
     function renderCharts(data) {
@@ -611,14 +952,20 @@
         const barOptions = {
           series: [
             { name: 'Poin Selesai', data: points },
-            { name: 'Goal Bulanan (22 Hari)', data: goals }
+            { name: `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, data: goals }
           ],
           chart: {
             type: 'bar',
             height: 340,
             toolbar: { show: false },
             background: 'transparent',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif'
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif',
+            events: {
+              dataPointSelection: function(event, chartContext, config) {
+                const clickedEmp = emps[config.dataPointIndex];
+                if (clickedEmp) openDetailModal(clickedEmp.nama);
+              }
+            }
           },
           theme: { mode: 'light' },
           colors: ['#0071E3', '#E5E5EA'],
@@ -737,6 +1084,59 @@
       }
     }
 
+    // =========================================================================
+    // FITUR QUICK FILTER PILLS & SORTING TABEL
+    // =========================================================================
+    function setQuickFilter(filterType) {
+      currentQuickFilter = filterType;
+
+      const btnAll = document.getElementById('qf-all');
+      const btnPending = document.getElementById('qf-pending');
+      const btnAchieved = document.getElementById('qf-achieved');
+
+      if (btnAll) {
+        btnAll.className = filterType === 'all'
+          ? 'qf-btn active px-3 py-1 rounded-full bg-apple-blue text-white font-semibold transition shadow-2xs'
+          : 'qf-btn px-3 py-1 rounded-full bg-white text-apple-secondary border border-black/[0.08] hover:text-apple-ink font-medium transition';
+      }
+      if (btnPending) {
+        btnPending.className = filterType === 'pending'
+          ? 'qf-btn active px-3 py-1 rounded-full bg-apple-orange text-white font-semibold transition shadow-2xs'
+          : 'qf-btn px-3 py-1 rounded-full bg-white text-[#B25000] border border-[#FF9500]/30 hover:bg-[#FF9500]/10 font-medium transition';
+      }
+      if (btnAchieved) {
+        btnAchieved.className = filterType === 'achieved'
+          ? 'qf-btn active px-3 py-1 rounded-full bg-apple-green text-white font-semibold transition shadow-2xs'
+          : 'qf-btn px-3 py-1 rounded-full bg-white text-[#1D8338] border border-[#34C759]/30 hover:bg-[#34C759]/10 font-medium transition';
+      }
+
+      renderTable();
+    }
+
+    function sortTable(key) {
+      if (currentSort.key === key) {
+        currentSort.asc = !currentSort.asc;
+      } else {
+        currentSort.key = key;
+        currentSort.asc = key === 'nama';
+      }
+
+      const sortKeys = ['nama', 'targetHarian', 'poinDiperoleh', 'kpiPersenBulanan', 'hariKirim', 'belumUbahStatus', 'tidakKirim'];
+      sortKeys.forEach(k => {
+        const el = document.getElementById(`sort-${k}`);
+        if (!el) return;
+        if (k === currentSort.key) {
+          el.innerText = currentSort.asc ? '↑' : '↓';
+          el.className = 'text-apple-blue font-bold';
+        } else {
+          el.innerText = '';
+          el.className = 'text-apple-tertiary';
+        }
+      });
+
+      renderTable();
+    }
+
     function renderTable() {
       if (!rawDashboardData) return;
 
@@ -745,17 +1145,35 @@
       const tbody = document.getElementById('tableBody');
       if (!tbody) return;
 
-      const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
+      const isDateFiltered = Boolean(rawDashboardData.filter && rawDashboardData.filter.startDate && rawDashboardData.filter.endDate);
+      const days = isDateFiltered ? (rawDashboardData.workingDays || 1) : HARI_KERJA_BULANAN;
       const isFiltered = days !== HARI_KERJA_BULANAN;
       tbody.innerHTML = '';
 
       let list = (rawDashboardData.employees || []).filter(emp => {
         const matchName = emp.nama.toLowerCase().includes(search);
         const matchDiv = divFilter === 'ALL' || emp.divisi === divFilter;
-        return matchName && matchDiv;
+        
+        let matchQuick = true;
+        if (currentQuickFilter === 'pending') {
+          matchQuick = emp.belumUbahStatus > 0;
+        } else if (currentQuickFilter === 'achieved') {
+          matchQuick = emp.statusCapaianBulanan === 'TERCAPAI';
+        }
+
+        return matchName && matchDiv && matchQuick;
       });
 
-      list.sort((a, b) => b.kpiPersenBulanan - a.kpiPersenBulanan);
+      setText('activeFilterCount', `Menampilkan ${list.length} dari ${(rawDashboardData.employees || []).length} karyawan`);
+
+      list.sort((a, b) => {
+        let valA = a[currentSort.key];
+        let valB = b[currentSort.key];
+        if (typeof valA === 'string') {
+          return currentSort.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return currentSort.asc ? valA - valB : valB - valA;
+      });
 
       if (list.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-apple-secondary text-xs">Tidak ada data karyawan yang sesuai filter.</td></tr>`;
@@ -774,14 +1192,20 @@
         const goalBulananText = goalBulanan > 0 ? `Goal: ${goalBulanan}` : 'Goal: -';
 
         const row = document.createElement('tr');
-        row.className = 'hover:bg-[#F5F5F7]/70 transition-colors';
+        row.className = 'hover:bg-[#F5F5F7] transition-colors cursor-pointer group';
+        row.onclick = () => openDetailModal(emp.nama);
         row.innerHTML = `
           <td class="py-2.5 px-4">
-            <div class="font-semibold text-apple-ink text-xs sm:text-[13px] leading-snug">${emp.nama}</div>
+            <div class="font-semibold text-apple-ink group-hover:text-apple-blue text-xs sm:text-[13px] leading-snug flex items-center gap-1 transition-colors">
+              <span>${emp.nama}</span>
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-apple-blue transition-opacity"></i>
+            </div>
             <div class="text-apple-secondary text-[11px]">${emp.divisi}</div>
           </td>
           <td class="py-2.5 px-2 text-center whitespace-nowrap">
-            <div class="text-apple-ink font-semibold text-xs">${emp.targetHarian} <span class="text-apple-secondary text-[10px] font-normal">/hr</span></div>
+            <div class="font-semibold text-xs ${emp.isCustomTarget ? 'text-[#B25000]' : 'text-apple-ink'}" title="${emp.isCustomTarget ? `Target Kustom Aktif (Default Divisi: ${emp.baseTargetHarian}/hr)` : 'Target Standar Divisi'}">
+              ${emp.targetHarian} <span class="text-apple-secondary text-[10px] font-normal">/hr</span> ${emp.isCustomTarget ? '★' : ''}
+            </div>
             ${isFiltered ? `<div class="text-[10px] text-apple-secondary">(${emp.targetBulanan} prd)</div>` : ''}
             <div class="text-[10px] text-apple-blue font-medium">${goalBulananText}</div>
           </td>
@@ -804,10 +1228,10 @@
               </div>
             </div>
 
-            <!-- 2. TRACK BAWAH: GOAL BULANAN 22 HARI (Indigo / Hijau) -->
+            <!-- 2. TRACK BAWAH: GOAL BULANAN DINAMIS (Indigo / Hijau) -->
             <div>
               <div class="flex items-center justify-between text-[10px] mb-0.5 leading-none">
-                <span class="text-apple-secondary font-medium">Goal 22 Hr</span>
+                <span class="text-apple-secondary font-medium">Goal ${HARI_KERJA_BULANAN} Hr</span>
                 <span class="font-semibold ${isGoalTercapai ? 'text-[#1D8338]' : 'text-apple-indigo'}">
                   ${emp.kpiPersenBulanan}% <span class="text-apple-secondary font-normal">(${emp.poinDiperoleh}/${goalBulanan})</span>
                 </span>
@@ -843,6 +1267,197 @@
       lucide.createIcons();
     }
 
+    const renderEmployeeTable = renderTable;
+
+    // =========================================================================
+    // FITUR MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN & EKSPOR INDIVIDU
+    // =========================================================================
+    function openDetailModal(empName) {
+      if (!rawDashboardData || !rawDashboardData.employees) return;
+      const emp = rawDashboardData.employees.find(e => e.nama === empName);
+      if (!emp) return;
+
+      selectedEmployee = emp;
+
+      setText('modalEmpName', emp.nama);
+      setText('modalEmpDiv', emp.divisi);
+      setText(
+        'modalEmpSummary',
+        `Target: ${emp.targetHarian}/hr ${emp.isCustomTarget ? '(Kustom ★)' : ''} · Poin Selesai: ${emp.poinDiperoleh} · Capaian Periode: ${emp.kpiPersenPeriode}% (${emp.poinDiperoleh}/${emp.targetBulanan}) · Goal ${HARI_KERJA_BULANAN} Hr: ${emp.kpiPersenBulanan}% (${emp.poinDiperoleh}/${emp.goalBulanan})`
+      );
+
+      const statusFilter = document.getElementById('modalStatusFilter');
+      const taskSearch = document.getElementById('modalTaskSearch');
+      if (statusFilter) statusFilter.value = 'ALL';
+      if (taskSearch) taskSearch.value = '';
+
+      renderModalTasks();
+
+      const modal = document.getElementById('detailModal');
+      if (modal) modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeDetailModal() {
+      const modal = document.getElementById('detailModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function handleModalBackdropClick(event) {
+      if (event.target.id === 'detailModal') {
+        closeDetailModal();
+      }
+    }
+
+    function renderModalTasks() {
+      if (!selectedEmployee) return;
+
+      const statusVal = document.getElementById('modalStatusFilter')?.value || 'ALL';
+      const searchVal = (document.getElementById('modalTaskSearch')?.value || '').toLowerCase();
+      const tbody = document.getElementById('modalTaskBody');
+      if (!tbody) return;
+
+      const tasks = selectedEmployee.tasks || [];
+      const filtered = tasks.filter(t => {
+        const matchStatus = statusVal === 'ALL' || t.status === statusVal;
+        const matchSearch =
+          (t.tugas || '').toLowerCase().includes(searchVal) ||
+          (t.klien || '').toLowerCase().includes(searchVal) ||
+          (t.tanggal || '').toLowerCase().includes(searchVal);
+        return matchStatus && matchSearch;
+      });
+
+      setText('modalTaskCount', `Menampilkan ${filtered.length} dari ${tasks.length} tugas`);
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-apple-secondary text-xs">Tidak ada rincian tugas yang cocok dengan filter ini.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(t => {
+        const isSelesai = t.status === 'Selesai';
+        const isCancel = t.status === 'Cancel';
+        const badgeClass = isSelesai
+          ? 'bg-[#34C759]/15 text-[#1D8338]'
+          : (isCancel ? 'bg-[#FF3B30]/12 text-[#D70015]' : 'bg-[#FF9500]/15 text-[#B25000]');
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-[#F5F5F7]/60 transition-colors';
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 whitespace-nowrap font-medium text-apple-ink">${t.tanggal || '-'}</td>
+          <td class="py-2.5 px-3 whitespace-nowrap text-apple-secondary">${t.jam || '-'}</td>
+          <td class="py-2.5 px-3 font-medium text-apple-blue">${t.klien || '-'}</td>
+          <td class="py-2.5 px-4 text-apple-ink">${t.tugas || '-'}</td>
+          <td class="py-2.5 px-3 text-center font-medium">${t.qty || 1}</td>
+          <td class="py-2.5 px-3 text-right font-semibold">${isSelesai ? t.poin : 0}</td>
+          <td class="py-2.5 px-4 text-center whitespace-nowrap">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${badgeClass}">
+              ${t.status}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function exportSingleEmployeeExcel() {
+      if (!selectedEmployee) return;
+
+      const wb = XLSX.utils.book_new();
+      const detailRows = [];
+      let curDate = '';
+
+      (selectedEmployee.tasks || []).forEach(t => {
+        const isNewDate = t.tanggal !== curDate;
+        if (isNewDate) curDate = t.tanggal;
+
+        const jamVal = t.jam || '';
+        const isSelesaiTime = jamVal >= '17:00';
+
+        detailRows.push({
+          'Tanggal': isNewDate ? t.tanggal : '',
+          'Jam Tercatat Masuk': (!isSelesaiTime && jamVal) ? jamVal : '',
+          'Jam Tercatat Selesai': (isSelesaiTime && jamVal) ? jamVal : '',
+          'Klien': t.klien || '-',
+          'To Do List / Pekerjaan': t.tugas,
+          'Qty': t.qty,
+          'Status Rekap': t.status,
+          'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
+          'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
+          'Target KPI': isNewDate ? selectedEmployee.targetHarian : '',
+          'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
+        });
+      });
+
+      const sheetName = selectedEmployee.nama.slice(0, 30);
+      const wsDetail = XLSX.utils.json_to_sheet(detailRows, { origin: 'A5' });
+
+      XLSX.utils.sheet_add_aoa(wsDetail, [
+        [`REKAP TO DO LIST & KPI — ${selectedEmployee.nama.toUpperCase()}`],
+        ['Divisi', selectedEmployee.divisi, 'Target Poin KPI/Hari', selectedEmployee.targetHarian, `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, selectedEmployee.goalBulanan],
+        ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
+        []
+      ], { origin: 'A1' });
+
+      XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Rekap_KPI_${selectedEmployee.nama}_${dateStr}.xlsx`);
+    }
+
+    function exportSingleEmployeePDF() {
+      if (!selectedEmployee) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'pt', 'a4');
+
+      doc.setFontSize(14);
+      doc.setTextColor(29, 29, 31);
+      doc.text(`RINCIAN TUGAS & CAPAIAN KPI — ${selectedEmployee.nama.toUpperCase()} (${selectedEmployee.divisi})`, 40, 40);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(134, 134, 139);
+      doc.text(
+        `Target Harian: ${selectedEmployee.targetHarian}/hr | Poin Selesai: ${selectedEmployee.poinDiperoleh} | Capaian Periode: ${selectedEmployee.kpiPersenPeriode}% | Goal Bulanan (${HARI_KERJA_BULANAN} Hr): ${selectedEmployee.kpiPersenBulanan}% (${selectedEmployee.poinDiperoleh}/${selectedEmployee.goalBulanan})`,
+        40,
+        56
+      );
+
+      const rows = (selectedEmployee.tasks || []).map((t, idx) => [
+        idx + 1,
+        t.tanggal || '-',
+        t.jam || '-',
+        t.klien || '-',
+        t.tugas || '-',
+        t.qty || 1,
+        t.status === 'Selesai' ? t.poin : 0,
+        t.status
+      ]);
+
+      doc.autoTable({
+        startY: 72,
+        head: [['No', 'Tanggal', 'Jam', 'Klien', 'Deskripsi To Do List', 'Qty', 'Poin', 'Status']],
+        body: rows,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 5, textColor: [29, 29, 31], lineColor: [229, 229, 234], lineWidth: 0.5 },
+        headStyles: { fillColor: [245, 245, 247], textColor: [29, 29, 31], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [252, 252, 254] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 28 },
+          1: { halign: 'center', cellWidth: 65 },
+          2: { halign: 'center', cellWidth: 45 },
+          3: { cellWidth: 95 },
+          5: { halign: 'center', cellWidth: 35 },
+          6: { halign: 'right', cellWidth: 45 },
+          7: { halign: 'center', cellWidth: 90 }
+        }
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      doc.save(`Laporan_Detail_${selectedEmployee.nama}_${dateStr}.pdf`);
+    }
+
     // =========================================================================
     // FITUR EKSPOR EXCEL GABUNGAN (SheetJS — MULTI-TAB SELURUH TIM)
     // =========================================================================
@@ -859,8 +1474,9 @@
         'Nama Karyawan': e.nama,
         'Divisi': e.divisi,
         'Target Harian': e.targetHarian,
+        'Target Kustom': e.isCustomTarget ? 'Ya (★)' : 'Standar',
         'Target Periode': e.targetBulanan,
-        'Goal Bulanan (22 Hari)': e.goalBulanan || (e.targetHarian * HARI_KERJA_BULANAN),
+        [`Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`]: e.goalBulanan || (e.targetHarian * HARI_KERJA_BULANAN),
         'Poin Selesai': e.poinDiperoleh,
         'Total Tugas': e.totalTugas,
         'Capaian Periode (%)': `${e.kpiPersenPeriode}%`,
@@ -905,7 +1521,7 @@
 
         XLSX.utils.sheet_add_aoa(wsDetail, [
           [`REKAP TO DO LIST & KPI — ${emp.nama.toUpperCase()}`],
-          ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian, 'Goal Bulanan (22 Hari)', emp.goalBulanan],
+          ['Divisi', emp.divisi, 'Target Poin KPI/Hari', emp.targetHarian, `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, emp.goalBulanan],
           ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
           []
         ], { origin: 'A1' });
@@ -918,7 +1534,7 @@
     }
 
     // =========================================================================
-    // FITUR EKSPOR PDF (jsPDF + AutoTable)
+    // FITUR EKSPOR PDF GABUNGAN (jsPDF + AutoTable)
     // =========================================================================
     function exportToPDF() {
       if (!rawDashboardData || !rawDashboardData.employees) {
@@ -930,11 +1546,12 @@
       const doc = new jsPDF('landscape', 'pt', 'a4');
 
       const sum = rawDashboardData.summary || {};
-      const days = rawDashboardData.workingDays || HARI_KERJA_BULANAN;
+      const isDateFiltered = Boolean(rawDashboardData.filter && rawDashboardData.filter.startDate && rawDashboardData.filter.endDate);
+      const days = isDateFiltered ? (rawDashboardData.workingDays || 1) : HARI_KERJA_BULANAN;
       const filter = rawDashboardData.filter;
-      const periodLabel = (filter && filter.startDate && filter.endDate)
+      const periodLabel = isDateFiltered
         ? (filter.startDate === filter.endDate ? `Hari Ini: ${filter.startDate} (1 Hari Kerja)` : `${filter.startDate} s/d ${filter.endDate} (${days} Hari Kerja)`)
-        : `Bulan Penuh (${days} Hari Kerja)`;
+        : `Bulan Penuh (${HARI_KERJA_BULANAN} Hari Kerja)`;
 
       const totalGoalTim = rawDashboardData.employees.reduce((acc, emp) => acc + emp.goalBulanan, 0);
 
@@ -944,13 +1561,13 @@
 
       doc.setFontSize(9.5);
       doc.setTextColor(134, 134, 139);
-      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin || 0} | Goal Bulanan Tim: ${totalGoalTim}`, 40, 56);
+      doc.text(`Periode: ${periodLabel} | Total Poin: ${sum.totalPoin || 0} | Goal Bulanan Tim (${HARI_KERJA_BULANAN} Hr): ${totalGoalTim}`, 40, 56);
 
       const tableRows = rawDashboardData.employees.map((e, index) => [
         index + 1,
         e.nama,
         e.divisi,
-        `${e.targetHarian}/hr (${e.goalBulanan} goal bln)`,
+        `${e.targetHarian}/hr ${e.isCustomTarget ? '★' : ''} (${e.goalBulanan} goal)`,
         e.poinDiperoleh,
         `${e.kpiPersenPeriode}% prd | ${e.kpiPersenBulanan}% bln`,
         `${e.hariKirim} / ${days}`,
@@ -981,6 +1598,376 @@
 
       const dateStr = new Date().toISOString().slice(0, 10);
       doc.save(`Laporan_KPI_Tim_${dateStr}.pdf`);
+    }
+
+    // =========================================================================
+    // MODUL SMART NOTIFICATION, WEB AUDIO SFX & NARATOR GEMINI TTS (NETLIFY SECURED)
+    // =========================================================================
+    const GEMINI_VOICE_STORAGE = 'KPI_DASHBOARD_GEMINI_VOICE';
+    const VOICE_AUTO_STORAGE = 'KPI_DASHBOARD_VOICE_AUTO';
+    const MORNING_TIME_STORAGE = 'KPI_DASHBOARD_MORNING_TIME';
+    const AFTERNOON_TIME_STORAGE = 'KPI_DASHBOARD_AFTERNOON_TIME';
+    const CELEBRATED_LIST_STORAGE = 'KPI_DASHBOARD_CELEBRATED_TODAY';
+
+    let isVoiceEnabled = localStorage.getItem(VOICE_AUTO_STORAGE) !== 'false';
+    let sharedAudioCtx = null;
+    let lastTriggeredMinute = '';
+
+    function getAudioCtx() {
+      if (!sharedAudioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        sharedAudioCtx = new AudioContextClass();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
+      }
+      return sharedAudioCtx;
+    }
+
+    // Inisialisasi Pengaturan Suara & Timer Pengingat
+    document.addEventListener('DOMContentLoaded', () => {
+      updateVoiceToggleUI();
+      const savedVoice = localStorage.getItem(GEMINI_VOICE_STORAGE) || 'Aoede';
+      const savedMorning = localStorage.getItem(MORNING_TIME_STORAGE) || '09:30';
+      const savedAfternoon = localStorage.getItem(AFTERNOON_TIME_STORAGE) || '16:30';
+
+      if (document.getElementById('geminiVoiceSelect')) document.getElementById('geminiVoiceSelect').value = savedVoice;
+      if (document.getElementById('morningReminderTime')) document.getElementById('morningReminderTime').value = savedMorning;
+      if (document.getElementById('afternoonReminderTime')) document.getElementById('afternoonReminderTime').value = savedAfternoon;
+
+      // Jalankan pengecekan jam pengingat otomatis setiap 25 detik
+      setInterval(checkScheduledReminders, 25000);
+    });
+
+    // Simpan konfigurasi Karakter Suara Gemini & Jam Pengingat saat tombol Simpan di Modal diklik
+    function saveGeminiConfigFromModal() {
+      const voiceEl = document.getElementById('geminiVoiceSelect');
+      const mornEl = document.getElementById('morningReminderTime');
+      const aftEl = document.getElementById('afternoonReminderTime');
+
+      if (voiceEl) localStorage.setItem(GEMINI_VOICE_STORAGE, voiceEl.value);
+      if (mornEl) localStorage.setItem(MORNING_TIME_STORAGE, mornEl.value || '09:30');
+      if (aftEl) localStorage.setItem(AFTERNOON_TIME_STORAGE, aftEl.value || '16:30');
+    }
+
+    function toggleVoiceAuto() {
+      getAudioCtx(); // Membuka kunci autoplay browser
+      isVoiceEnabled = !isVoiceEnabled;
+      localStorage.setItem(VOICE_AUTO_STORAGE, isVoiceEnabled);
+      updateVoiceToggleUI();
+      if (isVoiceEnabled) playNotificationChime('morning');
+    }
+
+    function updateVoiceToggleUI() {
+      const btn = document.getElementById('voiceToggleBtn');
+      const txt = document.getElementById('voiceToggleText');
+      const icon = document.getElementById('voiceToggleIcon');
+      if (!btn || !txt || !icon) return;
+
+      if (isVoiceEnabled) {
+        txt.innerText = 'Suara AI: ON';
+        btn.className = 'px-3 py-1.5 rounded-[10px] bg-apple-blue/10 hover:bg-apple-blue/15 text-apple-blue border border-apple-blue/25 text-xs font-semibold flex items-center gap-1.5 transition active:scale-[0.98]';
+        icon.setAttribute('data-lucide', 'volume-2');
+      } else {
+        txt.innerText = 'Suara AI: OFF';
+        btn.className = 'px-3 py-1.5 rounded-[10px] bg-white hover:bg-apple-fill text-apple-secondary border border-black/[0.1] text-xs font-medium flex items-center gap-1.5 transition active:scale-[0.98]';
+        icon.setAttribute('data-lucide', 'volume-x');
+      }
+      lucide.createIcons();
+    }
+
+    // 1. SYNTHESIZER EFEK SUARA UNIK (WEB AUDIO API)
+    function playNotificationChime(type = 'morning') {
+      if (!isVoiceEnabled) return;
+      try {
+        const ctx = getAudioCtx();
+        const now = ctx.currentTime;
+
+        const playTone = (freq, startOffset, duration, wave = 'sine', peakGain = 0.18) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = wave;
+          osc.frequency.setValueAtTime(freq, now + startOffset);
+          gain.gain.setValueAtTime(0.001, now + startOffset);
+          gain.gain.exponentialRampToValueAtTime(peakGain, now + startOffset + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + startOffset + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + startOffset);
+          osc.stop(now + startOffset + duration);
+        };
+
+        if (type === 'morning') {
+          playTone(523.25, 0.0, 0.28, 'triangle', 0.2); // C5
+          playTone(659.25, 0.16, 0.45, 'triangle', 0.22); // E5
+        } else if (type === 'afternoon') {
+          playTone(440.0, 0.0, 0.18, 'sine', 0.22); // A4
+          playTone(440.0, 0.20, 0.18, 'sine', 0.22); // A4
+          playTone(587.33, 0.40, 0.45, 'triangle', 0.25); // D5
+        } else if (type === 'celebration') {
+          playTone(523.25, 0.0, 0.22, 'triangle', 0.2); // C5
+          playTone(659.25, 0.12, 0.22, 'triangle', 0.2); // E5
+          playTone(783.99, 0.24, 0.25, 'triangle', 0.22); // G5
+          playTone(1046.50, 0.38, 0.65, 'sine', 0.26); // C6
+        }
+      } catch (e) {
+        console.warn('Audio SFX diblokir sementara oleh browser:', e);
+      }
+    }
+
+    // 2. PEMANGGIL SUARA NARATOR GEMINI (MELALUI NETLIFY SERVERLESS PROXY)
+    async function speakWithGemini(narrationText, toneStyle = 'ramah dan profesional') {
+      if (!isVoiceEnabled || !narrationText) return;
+      saveGeminiConfigFromModal();
+
+      const voiceName = localStorage.getItem(GEMINI_VOICE_STORAGE) || 'Aoede';
+
+      try {
+        // Memanggil endpoint internal Netlify (API Key tersembunyi di server Netlify)
+        const res = await fetch('/.netlify/functions/gemini-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            narrationText: narrationText,
+            toneStyle: toneStyle,
+            voiceName: voiceName
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.audioContent) {
+            await playBase64PcmAudio(json.audioContent, 24000);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Endpoint Netlify TTS belum aktif atau gagal, beralih ke suara standar browser:', err);
+      }
+
+      // Fallback otomatis ke Web Speech API Bahasa Indonesia jika dibuka secara lokal (offline)
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(narrationText);
+        utter.lang = 'id-ID';
+        utter.rate = 1.04;
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    // Decoder PCM 16-bit 24kHz dari Gemini TTS ke Web Audio API
+    async function playBase64PcmAudio(base64Data, sampleRate = 24000) {
+      const ctx = getAudioCtx();
+      const binaryStr = atob(base64Data);
+      const len = binaryStr.length;
+      const int16Arr = new Int16Array(len / 2);
+      for (let i = 0; i < len; i += 2) {
+        int16Arr[i / 2] = binaryStr.charCodeAt(i) | (binaryStr.charCodeAt(i + 1) << 8);
+      }
+      const float32Arr = new Float32Array(int16Arr.length);
+      for (let i = 0; i < int16Arr.length; i++) {
+        float32Arr[i] = int16Arr[i] / 32768.0;
+      }
+      const audioBuffer = ctx.createBuffer(1, float32Arr.length, sampleRate);
+      audioBuffer.getChannelData(0).set(float32Arr);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start();
+    }
+
+    // 3. KOMPONEN POP-UP FLOATING TOAST (APPLE HIG GLASSMORPHISM)
+    function showSmartNotification({ type, title, subtitle, narration, tone, actionLabel, onAction }) {
+      const container = document.getElementById('notificationToastContainer');
+      if (!container) return;
+
+      playNotificationChime(type);
+      setTimeout(() => speakWithGemini(narration, tone), 450);
+
+      const themeMap = {
+        morning: {
+          border: 'border-apple-blue/30',
+          badgeBg: 'bg-apple-blue/10 text-apple-blue',
+          icon: 'alarm-clock',
+          btnBg: 'bg-apple-blue hover:bg-apple-blueHover text-white'
+        },
+        afternoon: {
+          border: 'border-[#FF9500]/40',
+          badgeBg: 'bg-[#FF9500]/15 text-[#B25000]',
+          icon: 'alert-triangle',
+          btnBg: 'bg-apple-orange hover:opacity-90 text-white'
+        },
+        celebration: {
+          border: 'border-[#34C759]/40',
+          badgeBg: 'bg-[#34C759]/15 text-[#1D8338]',
+          icon: 'party-popper',
+          btnBg: 'bg-apple-green hover:opacity-90 text-white'
+        }
+      };
+
+      const st = themeMap[type] || themeMap.morning;
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto apple-glass bg-white/95 border ${st.border} rounded-2xl p-4 shadow-xl transition-all duration-300 space-y-3`;
+
+      const safeNarration = narration.replace(/'/g, "\\'");
+      toast.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 rounded-xl ${st.badgeBg}">
+              <i data-lucide="${st.icon}" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold tracking-tight text-apple-ink">${title}</h4>
+              <p class="text-[11px] text-apple-secondary font-medium">${subtitle}</p>
+            </div>
+          </div>
+          <button onclick="this.closest('.pointer-events-auto').remove()" class="w-6 h-6 rounded-full bg-apple-fill text-apple-secondary hover:text-apple-ink flex items-center justify-center transition">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        <p class="text-xs text-apple-ink leading-relaxed bg-[#F5F5F7] p-3 rounded-xl border border-black/[0.05] italic">
+          "${narration}"
+        </p>
+        <div class="flex items-center justify-between gap-2 pt-0.5">
+          <button onclick="speakWithGemini('${safeNarration}', '${tone}')" class="px-2.5 py-1.5 rounded-[10px] bg-apple-fill hover:bg-apple-border text-apple-ink text-[11px] font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="volume-2" class="w-3.5 h-3.5 text-apple-blue"></i> Dengarkan Ulang
+          </button>
+          <button class="toast-action-btn px-3 py-1.5 rounded-[10px] ${st.btnBg} text-[11px] font-semibold transition shadow-2xs">
+            ${actionLabel || 'Tampilkan Data'}
+          </button>
+        </div>
+      `;
+
+      const actionBtn = toast.querySelector('.toast-action-btn');
+      if (actionBtn && typeof onAction === 'function') {
+        actionBtn.addEventListener('click', () => {
+          onAction();
+          toast.remove();
+        });
+      }
+
+      container.prepend(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 18000);
+    }
+
+    // 4. LOGIKA SKENARIO 1: PENGINGAT PRESENSI PAGI
+    function triggerMorningReminder(isManualTest = false) {
+      if (!processedEmployees.length) return;
+      const missingStaf = processedEmployees.filter(e => e.tidakKirim > 0 || e.hariKirim === 0);
+      const count = missingStaf.length;
+
+      if (count === 0 && !isManualTest) return;
+
+      const sampleNames = missingStaf.slice(0, 3).map(e => e.nama).join(', ');
+      const narration = count > 0
+        ? `Selamat pagi! Sekadar mengingatkan, saat ini masih ada ${count} rekan tim, termasuk ${sampleNames}, yang belum mengirimkan to-do list hari ini. Yuk segera kita follow-up.`
+        : `Selamat pagi! Luar biasa, seluruh anggota tim aktif sudah mengirimkan rencana to-do list mereka hari ini.`;
+
+      showSmartNotification({
+        type: 'morning',
+        title: '⏰ Pengingat Presensi Pagi',
+        subtitle: count > 0 ? `${count} Staf Belum Input To-Do List` : '100% Tim Sudah Kirim List',
+        narration: narration,
+        tone: 'hangat, ramah, dan penuh semangat pagi',
+        actionLabel: 'Urutkan Belum Kirim',
+        onAction: () => {
+          currentSort = { key: '', asc: true };
+          sortTable('tidakKirim');
+        }
+      });
+    }
+
+    // 5. LOGIKA SKENARIO 2: EVALUASI TUGAS SORE / PENDING
+    function triggerAfternoonReminder(isManualTest = false) {
+      if (!processedEmployees.length) return;
+      const pendingStaf = processedEmployees.filter(e => e.belumUbahStatus > 0);
+      const totalPending = processedEmployees.reduce((acc, e) => acc + (e.belumUbahStatus || 0), 0);
+
+      if (totalPending === 0 && !isManualTest) return;
+
+      const narration = totalPending > 0
+        ? `Halo, jam operasional hampir berakhir. Masih tercatat ${totalPending} tugas dari ${pendingStaf.length} anggota tim yang statusnya belum diubah menjadi selesai. Mohon diingatkan agar poin KPI harian mereka tervalidasi.`
+        : `Evaluasi sore selesai! Seluruh tugas tim hari ini sudah diperbarui tanpa ada antrean pending.`;
+
+      showSmartNotification({
+        type: 'afternoon',
+        title: '⚠️ Evaluasi Tugas Sore',
+        subtitle: `${totalPending} Tugas Masih Berstatus Pending`,
+        narration: narration,
+        tone: 'suportif, jelas, dan mengingatkan dengan sopan',
+        actionLabel: 'Filter Staf Pending',
+        onAction: () => {
+          setQuickFilter('pending');
+        }
+      });
+    }
+
+    // 6. LOGIKA SKENARIO 3: SELEBRASI TARGET KPI TERCAPAI (>= 100%)
+    function checkKpiCelebrations(employees) {
+      if (!employees || !employees.length) return;
+      const todayKey = getTodayString();
+      const savedData = JSON.parse(localStorage.getItem(CELEBRATED_LIST_STORAGE) || '{}');
+      const celebratedToday = savedData[todayKey] || [];
+
+      const newAchievers = employees.filter(e =>
+        (e.kpiPeriodePersen >= 100 || e.kpiGoalPersen >= 100) &&
+        e.targetHarian > 0 &&
+        !celebratedToday.includes(e.nama)
+      );
+
+      if (newAchievers.length > 0) {
+        const topEmp = newAchievers[0];
+        celebratedToday.push(...newAchievers.map(a => a.nama));
+        localStorage.setItem(CELEBRATED_LIST_STORAGE, JSON.stringify({ [todayKey]: celebratedToday }));
+
+        const otherText = newAchievers.length > 1 ? ` bersama ${newAchievers.length - 1} rekan lainnya` : '';
+        showSmartNotification({
+          type: 'celebration',
+          title: '🎉 Target KPI Tercapai!',
+          subtitle: `${topEmp.nama} (${topEmp.divisi}) • ${topEmp.poinDiperoleh} Poin`,
+          narration: `Kabar gembira! ${topEmp.nama} dari divisi ${topEmp.divisi}${otherText} baru saja menembus target KPI dengan perolehan ${topEmp.poinDiperoleh} poin. Apresiasi terbaik untuk performa hari ini!`,
+          tone: 'sangat antusias, bangga, dan merayakan pencapaian',
+          actionLabel: 'Buka Rincian Tugas',
+          onAction: () => openDetailModal(topEmp.nama)
+        });
+      }
+    }
+
+    function triggerCelebrationPreview() {
+      const sampleEmp = processedEmployees.find(e => e.poinDiperoleh > 0) || processedEmployees[0] || {
+        nama: 'Ayunda', divisi: 'KOL Specialist', poinDiperoleh: 18
+      };
+      showSmartNotification({
+        type: 'celebration',
+        title: '🎉 Target KPI Tercapai! (Simulasi)',
+        subtitle: `${sampleEmp.nama} (${sampleEmp.divisi}) • ${sampleEmp.poinDiperoleh} Poin`,
+        narration: `Luar biasa! ${sampleEmp.nama} dari divisi ${sampleEmp.divisi} baru saja mencapai target KPI dengan total ${sampleEmp.poinDiperoleh} poin. Kerja yang sangat memuaskan!`,
+        tone: 'sangat antusias, bangga, dan merayakan pencapaian',
+        actionLabel: 'Buka Rincian Tugas',
+        onAction: () => openDetailModal(sampleEmp.nama)
+      });
+    }
+
+    // 7. PENJADWAL OTOMATIS BERDASARKAN JAM LOKAL
+    function checkScheduledReminders() {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      if (hhmm === lastTriggeredMinute) return;
+
+      const morningTime = localStorage.getItem(MORNING_TIME_STORAGE) || '09:30';
+      const afternoonTime = localStorage.getItem(AFTERNOON_TIME_STORAGE) || '16:30';
+
+      if (hhmm === morningTime) {
+        lastTriggeredMinute = hhmm;
+        triggerMorningReminder(false);
+      } else if (hhmm === afternoonTime) {
+        lastTriggeredMinute = hhmm;
+        triggerAfternoonReminder(false);
+      }
     }
   </script>
 </body>
