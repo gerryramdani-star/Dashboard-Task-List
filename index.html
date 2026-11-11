@@ -49,7 +49,8 @@
               blueHover: '#0077ED',
               green: '#34C759',
               orange: '#FF9500',
-              red: '#FF3B30'
+              red: '#FF3B30',
+              indigo: '#5856D6'
             }
           }
         }
@@ -69,7 +70,7 @@
       font-variant-numeric: tabular-nums;
     }
     .apple-glass {
-      background-color: rgba(255, 255, 255, 0.78);
+      background-color: rgba(255, 255, 255, 0.82);
       backdrop-filter: saturate(180%) blur(20px);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
     }
@@ -321,12 +322,12 @@
         </div>
       </section>
 
-      <!-- 3. DETAILED TABLE -->
+      <!-- 3. DETAILED TABLE (Dengan Dual Track Progress Bar Bertingkat) -->
       <section class="apple-card overflow-hidden">
         <div class="p-5 sm:p-6 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-sm font-semibold text-apple-ink tracking-tight">Tabel Kinerja Karyawan</h2>
-            <p class="text-xs text-apple-secondary mt-0.5">Persentase KPI dihitung terhadap Goal Bulanan (22 Hari Kerja)</p>
+            <p class="text-xs text-apple-secondary mt-0.5">Membandingkan persentase capaian periode aktif dan sasaran goal bulanan (22 hari)</p>
           </div>
 
           <div class="flex flex-wrap items-center gap-2.5">
@@ -343,7 +344,7 @@
           </div>
         </div>
 
-        <!-- COMPACT TABLE (Tanpa Horizontal Scroll di Layar Desktop) -->
+        <!-- COMPACT TABLE -->
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-[#FAFAFC] text-apple-secondary font-medium border-b border-black/[0.06] text-[11px] leading-tight">
@@ -351,7 +352,7 @@
                 <th class="py-3 px-4 font-semibold text-apple-ink">Nama & Divisi</th>
                 <th class="py-3 px-2 text-center font-semibold text-apple-ink">Target &<br><span class="text-[10px] text-apple-secondary font-normal">Goal Bln</span></th>
                 <th class="py-3 px-2.5 text-right font-semibold text-apple-ink">Poin<br><span class="text-[10px] text-apple-secondary font-normal">Selesai</span></th>
-                <th class="py-3 px-3 text-center font-semibold text-apple-ink">Capaian KPI<br><span class="text-[10px] text-apple-blue font-normal">(Goal 22 Hr)</span></th>
+                <th class="py-3 px-3 text-center font-semibold text-apple-ink">Capaian KPI<br><span class="text-[10px] text-apple-blue font-normal">Periode & Goal 22 Hr</span></th>
                 <th class="py-3 px-2 text-center font-semibold text-apple-ink">Kirim<br><span class="text-[10px] text-apple-secondary font-normal">List</span></th>
                 <th class="py-3 px-2 text-center font-semibold text-apple-ink">Belum Ubah<br><span class="text-[10px] text-apple-secondary font-normal">Status</span></th>
                 <th class="py-3 px-2 text-center font-semibold text-apple-ink">Tidak<br><span class="text-[10px] text-apple-secondary font-normal">Kirim</span></th>
@@ -377,6 +378,7 @@
     let barChartInstance = null;
     let donutChartInstance = null;
 
+    // Helper Aman: Mengisi teks tanpa risiko crash jika ID tidak sengaja terhapus
     function setText(id, text) {
       const el = document.getElementById(id);
       if (el) el.innerText = text;
@@ -526,13 +528,22 @@
       const sum = data.summary || {};
       const days = data.workingDays || HARI_KERJA_BULANAN;
 
+      // Kalkulasi KPI Ganda (Periode & Goal Bulanan Penuh)
       let totalGoalBulananTim = 0;
       (data.employees || []).forEach(emp => {
         emp.goalBulanan = emp.targetHarian * HARI_KERJA_BULANAN;
         totalGoalBulananTim += emp.goalBulanan;
+
+        // Persentase Goal Bulanan (22 Hari)
         emp.kpiPersenBulanan = emp.goalBulanan > 0
           ? Math.round((emp.poinDiperoleh / emp.goalBulanan) * 1000) / 10
           : 0;
+
+        // Persentase Periode Aktif / Harian
+        emp.kpiPersenPeriode = emp.targetBulanan > 0
+          ? Math.round((emp.poinDiperoleh / emp.targetBulanan) * 1000) / 10
+          : 0;
+
         emp.statusCapaianBulanan = emp.kpiPersenBulanan >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
       });
 
@@ -752,8 +763,10 @@
       }
 
       list.forEach(emp => {
-        const isTercapai = emp.statusCapaianBulanan === 'TERCAPAI';
-        const badgeStyle = isTercapai
+        const isPeriodTercapai = emp.kpiPersenPeriode >= 100;
+        const isGoalTercapai = emp.kpiPersenBulanan >= 100;
+
+        const badgeStyle = isGoalTercapai
           ? 'bg-[#34C759]/15 text-[#1D8338]'
           : 'bg-apple-fill text-apple-secondary';
 
@@ -763,43 +776,63 @@
         const row = document.createElement('tr');
         row.className = 'hover:bg-[#F5F5F7]/70 transition-colors';
         row.innerHTML = `
-          <td class="py-3 px-4">
+          <td class="py-2.5 px-4">
             <div class="font-semibold text-apple-ink text-xs sm:text-[13px] leading-snug">${emp.nama}</div>
             <div class="text-apple-secondary text-[11px]">${emp.divisi}</div>
           </td>
-          <td class="py-3 px-2 text-center whitespace-nowrap">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <div class="text-apple-ink font-semibold text-xs">${emp.targetHarian} <span class="text-apple-secondary text-[10px] font-normal">/hr</span></div>
             ${isFiltered ? `<div class="text-[10px] text-apple-secondary">(${emp.targetBulanan} prd)</div>` : ''}
             <div class="text-[10px] text-apple-blue font-medium">${goalBulananText}</div>
           </td>
-          <td class="py-3 px-2.5 text-right whitespace-nowrap">
+          <td class="py-2.5 px-2.5 text-right whitespace-nowrap">
             <span class="text-[13px] font-semibold text-apple-ink">${emp.poinDiperoleh}</span>
             <span class="text-apple-secondary text-[10px] block">${emp.totalTugas} tugas</span>
           </td>
-          <td class="py-3 px-3 min-w-[120px] max-w-[150px]">
-            <div class="flex items-center justify-between text-xs mb-1.5">
-              <span class="font-semibold ${isTercapai ? 'text-[#1D8338]' : 'text-apple-ink'} text-[11px]">${emp.kpiPersenBulanan}%</span>
-              <span class="text-[10px] text-apple-secondary">${emp.poinDiperoleh}/${goalBulanan}</span>
+          <td class="py-2.5 px-3 min-w-[135px] max-w-[165px]">
+            <!-- 1. TRACK ATAS: PERIODE AKTIF / HARIAN (Biru / Hijau) -->
+            <div class="mb-1.5">
+              <div class="flex items-center justify-between text-[10px] mb-0.5 leading-none">
+                <span class="text-apple-secondary">Periode</span>
+                <span class="font-semibold ${isPeriodTercapai ? 'text-[#1D8338]' : 'text-apple-ink'}">
+                  ${emp.kpiPersenPeriode}% <span class="text-apple-secondary font-normal">(${emp.poinDiperoleh}/${emp.targetBulanan})</span>
+                </span>
+              </div>
+              <div class="w-full bg-apple-fill rounded-full h-1 overflow-hidden">
+                <div class="h-1 rounded-full ${isPeriodTercapai ? 'bg-apple-green' : 'bg-apple-blue'} transition-all duration-500" 
+                     style="width: ${Math.min(100, emp.kpiPersenPeriode)}%"></div>
+              </div>
             </div>
-            <div class="w-full bg-apple-fill rounded-full h-1.5 overflow-hidden">
-              <div class="h-1.5 rounded-full ${isTercapai ? 'bg-apple-green' : 'bg-apple-blue'}" style="width: ${Math.min(100, emp.kpiPersenBulanan)}%"></div>
+
+            <!-- 2. TRACK BAWAH: GOAL BULANAN 22 HARI (Indigo / Hijau) -->
+            <div>
+              <div class="flex items-center justify-between text-[10px] mb-0.5 leading-none">
+                <span class="text-apple-secondary font-medium">Goal 22 Hr</span>
+                <span class="font-semibold ${isGoalTercapai ? 'text-[#1D8338]' : 'text-apple-indigo'}">
+                  ${emp.kpiPersenBulanan}% <span class="text-apple-secondary font-normal">(${emp.poinDiperoleh}/${goalBulanan})</span>
+                </span>
+              </div>
+              <div class="w-full bg-apple-fill rounded-full h-1 overflow-hidden">
+                <div class="h-1 rounded-full ${isGoalTercapai ? 'bg-apple-green' : 'bg-apple-indigo'} transition-all duration-500" 
+                     style="width: ${Math.min(100, emp.kpiPersenBulanan)}%"></div>
+              </div>
             </div>
           </td>
-          <td class="py-3 px-2 text-center whitespace-nowrap">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <span class="px-2 py-0.5 rounded-md bg-apple-fill text-apple-ink font-semibold text-xs">${emp.hariKirim}</span>
             <span class="text-apple-secondary text-[10px]">/${days}</span>
           </td>
-          <td class="py-3 px-2 text-center whitespace-nowrap">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <span class="px-2 py-0.5 rounded-full text-xs font-medium ${emp.belumUbahStatus > 0 ? 'bg-[#FF9500]/15 text-[#B25000]' : 'text-apple-tertiary'}">
               ${emp.belumUbahStatus}
             </span>
           </td>
-          <td class="py-3 px-2 text-center whitespace-nowrap">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <span class="px-2 py-0.5 rounded-full text-xs ${emp.tidakKirim > 0 ? 'bg-[#FF3B30]/12 text-[#D70015] font-semibold' : 'text-apple-tertiary'}">
               ${emp.tidakKirim}
             </span>
           </td>
-          <td class="py-3 px-3 text-center whitespace-nowrap">
+          <td class="py-2.5 px-3 text-center whitespace-nowrap">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-tight ${badgeStyle}">
               ${emp.statusCapaianBulanan}
             </span>
@@ -830,7 +863,8 @@
         'Goal Bulanan (22 Hari)': e.goalBulanan || (e.targetHarian * HARI_KERJA_BULANAN),
         'Poin Selesai': e.poinDiperoleh,
         'Total Tugas': e.totalTugas,
-        'Capaian KPI Bulanan (%)': `${e.kpiPersenBulanan}%`,
+        'Capaian Periode (%)': `${e.kpiPersenPeriode}%`,
+        'Capaian Goal Bulanan (%)': `${e.kpiPersenBulanan}%`,
         'Hari Kirim List': e.hariKirim,
         'Belum Ubah Status': e.belumUbahStatus,
         'Tidak Kirim List': e.tidakKirim,
@@ -918,7 +952,7 @@
         e.divisi,
         `${e.targetHarian}/hr (${e.goalBulanan} goal bln)`,
         e.poinDiperoleh,
-        `${e.kpiPersenBulanan}%`,
+        `${e.kpiPersenPeriode}% prd | ${e.kpiPersenBulanan}% bln`,
         `${e.hariKirim} / ${days}`,
         e.belumUbahStatus,
         e.tidakKirim,
@@ -927,7 +961,7 @@
 
       doc.autoTable({
         startY: 72,
-        head: [['No', 'Nama Karyawan', 'Divisi', 'Target & Goal', 'Poin', 'Capaian (Goal Bln)', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
+        head: [['No', 'Nama Karyawan', 'Divisi', 'Target & Goal', 'Poin', 'Capaian (Prd / Goal)', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
         body: tableRows,
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 5, textColor: [29, 29, 31], lineColor: [229, 229, 234], lineWidth: 0.5 },
@@ -937,7 +971,7 @@
           0: { halign: 'center', cellWidth: 25 },
           3: { halign: 'center' },
           4: { halign: 'right' },
-          5: { halign: 'right' },
+          5: { halign: 'center' },
           6: { halign: 'center' },
           7: { halign: 'center' },
           8: { halign: 'center' },
