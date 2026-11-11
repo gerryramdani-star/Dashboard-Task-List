@@ -271,28 +271,28 @@
             <!-- SEARCH -->
             <div class="relative">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-              <input type="text" id="searchInput" oninput="renderTable()" placeholder="Cari nama karyawan..." class="pl-9 pr-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 w-44 sm:w-56" />
+              <input type="text" id="searchInput" oninput="renderTable()" placeholder="Cari  karyawan..." class="pl-9 pr-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 w-44 sm:w-56" />
             </div>
           </div>
         </div>
 
         <!-- TABLE -->
         <div class="overflow-x-auto rounded-xl border border-slate-700/60">
-          <table class="w-full text-left text-xs whitespace-nowrap">
-            <thead class="bg-slate-900/90 text-slate-300 uppercase tracking-wider font-semibold border-b border-slate-700/60">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/90 text-slate-300 uppercase tracking-wider font-semibold border-b border-slate-700/60 text-[11px] leading-tight">
               <tr>
-                <th class="py-3 px-4">Nama & Divisi</th>
-                <th class="py-3 px-4 text-center">Target & Goal Bulanan</th>
-                <th class="py-3 px-4 text-right">Poin Diperoleh</th>
-                <th class="py-3 px-4">Capaian KPI (%) [Goal 22 Hr]</th>
-                <th class="py-3 px-4 text-center">Kirim List</th>
-                <th class="py-3 px-4 text-center">Belum Rubah Status</th>
-                <th class="py-3 px-4 text-center">Tidak Kirim</th>
-                <th class="py-3 px-4 text-center">Status</th>
+                <th class="py-2.5 px-3">Nama & Divisi</th>
+                <th class="py-2.5 px-2 text-center">Target &<br><span class="text-[10px] text-slate-400 font-normal">Goal Bln</span></th>
+                <th class="py-2.5 px-2.5 text-right">Poin<br><span class="text-[10px] text-slate-400 font-normal">Selesai</span></th>
+                <th class="py-2.5 px-3 text-center">Capaian KPI<br><span class="text-[10px] text-indigo-400 font-normal">(Goal 22 Hr)</span></th>
+                <th class="py-2.5 px-2 text-center">Kirim<br><span class="text-[10px] text-slate-400 font-normal">List</span></th>
+                <th class="py-2.5 px-2 text-center">Belum Ubah<br><span class="text-[10px] text-slate-400 font-normal">Status</span></th>
+                <th class="py-2.5 px-2 text-center">Tidak<br><span class="text-[10px] text-slate-400 font-normal">Kirim</span></th>
+                <th class="py-2.5 px-2.5 text-center">Status</th>
               </tr>
             </thead>
             <tbody id="tableBody" class="divide-y divide-slate-700/40 text-slate-200 font-medium">
-              <!-- Dynamically Populated -->
+              <!-- Terisi Otomatis via JS -->
             </tbody>
           </table>
         </div>
@@ -685,43 +685,43 @@
         const row = document.createElement('tr');
         row.className = 'hover:bg-slate-800/40 transition';
         row.innerHTML = `
-          <td class="py-3 px-4">
-            <div class="font-bold text-white text-sm">${emp.nama}</div>
+          <td class="py-2.5 px-3">
+            <div class="font-bold text-white text-xs sm:text-sm leading-snug">${emp.nama}</div>
             <div class="text-slate-400 text-[11px]">${emp.divisi}</div>
           </td>
-          <td class="py-3 px-4 text-center">
-            <div class="text-slate-200 font-semibold">${emp.targetHarian} <span class="text-slate-500 text-[11px] font-normal">/hr</span></div>
-            ${isFiltered ? `<div class="text-[11px] text-slate-400">(${emp.targetBulanan} target)</div>` : ''}
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
+            <div class="text-slate-200 font-semibold text-xs">${emp.targetHarian} <span class="text-slate-500 text-[10px] font-normal">/hr</span></div>
+            ${isFiltered ? `<div class="text-[10px] text-slate-400">(${emp.targetBulanan} target)</div>` : ''}
             <div class="text-[10px] text-indigo-400 font-bold tracking-tight">${goalBulananText}</div>
           </td>
-          <td class="py-3 px-4 text-right">
-            <span class="text-base font-bold text-white">${emp.poinDiperoleh}</span>
-            <span class="text-slate-400 text-[11px] block">${emp.totalTugas} total tugas</span>
+          <td class="py-2.5 px-2.5 text-right whitespace-nowrap">
+            <span class="text-sm font-bold text-white">${emp.poinDiperoleh}</span>
+            <span class="text-slate-400 text-[10px] block">${emp.totalTugas} tugas</span>
           </td>
-          <td class="py-3 px-4 w-44">
+          <td class="py-2.5 px-3 min-w-[115px] max-w-[145px]">
             <div class="flex items-center justify-between text-xs mb-1">
-              <span class="font-bold ${isTercapai ? 'text-emerald-400' : 'text-slate-200'}">${emp.kpiPersenBulanan}%</span>
+              <span class="font-bold ${isTercapai ? 'text-emerald-400' : 'text-slate-200'} text-[11px]">${emp.kpiPersenBulanan}%</span>
               <span class="text-[10px] text-slate-400">${emp.poinDiperoleh}/${goalBulanan}</span>
             </div>
             <div class="w-full bg-slate-700/50 rounded-full h-1.5 overflow-hidden">
               <div class="h-1.5 rounded-full ${isTercapai ? 'bg-emerald-500' : 'bg-brand-500'}" style="width: ${Math.min(100, emp.kpiPersenBulanan)}%"></div>
             </div>
           </td>
-          <td class="py-3 px-4 text-center">
-            <span class="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-semibold">${emp.hariKirim}</span>
-            <span class="text-slate-500 text-[11px]">/ ${days}</span>
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
+            <span class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs">${emp.hariKirim}</span>
+            <span class="text-slate-500 text-[10px]">/${days}</span>
           </td>
-          <td class="py-3 px-4 text-center">
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${emp.belumUbahStatus > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'text-slate-500'}">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${emp.belumUbahStatus > 0 ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'text-slate-500'}">
               ${emp.belumUbahStatus}
             </span>
           </td>
-          <td class="py-3 px-4 text-center">
-            <span class="px-2 py-0.5 rounded-md ${emp.tidakKirim > 0 ? 'bg-rose-500/10 text-rose-400' : 'text-slate-500'} font-semibold">
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
+            <span class="px-1.5 py-0.5 rounded ${emp.tidakKirim > 0 ? 'bg-rose-500/10 text-rose-400 font-bold' : 'text-slate-500'} text-xs">
               ${emp.tidakKirim}
             </span>
           </td>
-          <td class="py-3 px-4 text-center">
+          <td class="py-2.5 px-2.5 text-center whitespace-nowrap">
             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">
               ${emp.statusCapaianBulanan}
             </span>
@@ -731,7 +731,7 @@
       });
       lucide.createIcons();
     }
-
+    
     // =========================================================================
     // FITUR EKSPOR EXCEL GABUNGAN (SheetJS — MULTI-TAB SELURUH TIM)
     // =========================================================================
