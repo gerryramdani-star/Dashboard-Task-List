@@ -765,6 +765,48 @@
       loadDashboardData(start, end);
     }
 
+    // =========================================================================
+    // FITUR AUTO-REFRESH LATAR BELAKANG (TIAP 5 MENIT TANPA RELOAD)
+    // =========================================================================
+    async function silentRefresh() {
+      const baseUrl = localStorage.getItem(STORAGE_KEY);
+      if (!baseUrl) return;
+
+      const start = document.getElementById('filterStartDate')?.value || '';
+      const end = document.getElementById('filterEndDate')?.value || '';
+      const refreshIcon = document.getElementById('refreshIcon');
+
+      // Animasi putar halus pada tombol refresh tanpa menutup konten layar
+      if (refreshIcon) refreshIcon.classList.add('animate-spin');
+
+      try {
+        let requestUrl = baseUrl;
+        const params = [];
+        if (start) params.push(`startDate=${encodeURIComponent(start)}`);
+        if (end) params.push(`endDate=${encodeURIComponent(end)}`);
+        if (params.length > 0) {
+          requestUrl += (requestUrl.includes('?') ? '&' : '?') + params.join('&');
+        }
+
+        const response = await fetch(requestUrl, { redirect: 'follow' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.status === 'success') {
+          rawDashboardData = data;
+          populateDashboard(data);
+
+          const now = new Date();
+          setText('lastUpdatedText', `Auto-sync: ${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+        }
+      } catch (err) {
+        console.warn('Background auto-sync dilewati (menunggu koneksi):', err);
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+        lucide.createIcons();
+      }
+    }
+
     async function loadDashboardData(startDate = '', endDate = '') {
       const baseUrl = localStorage.getItem(STORAGE_KEY);
       if (!baseUrl) {
@@ -1624,7 +1666,7 @@
       return sharedAudioCtx;
     }
 
-    // Inisialisasi Pengaturan Suara & Timer Pengingat
+    // Inisialisasi Pengaturan Suara, Timer Pengingat & Auto-Refresh Latar Belakang
     document.addEventListener('DOMContentLoaded', () => {
       updateVoiceToggleUI();
       const savedVoice = localStorage.getItem(GEMINI_VOICE_STORAGE) || 'Aoede';
@@ -1637,6 +1679,9 @@
 
       // Jalankan pengecekan jam pengingat otomatis setiap 25 detik
       setInterval(checkScheduledReminders, 25000);
+
+      // TAMBAHKAN BARIS INI: Auto-refresh data spreadsheet tiap 5 menit (300.000 ms)
+      setInterval(silentRefresh, 300000);
     });
 
     // Simpan konfigurasi Karakter Suara Gemini & Jam Pengingat saat tombol Simpan di Modal diklik
