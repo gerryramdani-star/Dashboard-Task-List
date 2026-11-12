@@ -23,7 +23,7 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Teks narasi kosong.' }) };
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent?key=${encodeURIComponent(apiKey)}`;
     const prompt = `Bacakan pengumuman singkat ini dalam Bahasa Indonesia dengan intonasi ${toneStyle || 'ramah dan profesional'}: "${narrationText}"`;
 
     const response = await fetch(endpoint, {
