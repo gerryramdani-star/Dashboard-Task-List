@@ -426,7 +426,7 @@
         </div>
       </section>
 
-      <!-- 3. DETAILED TABLE (Dengan Quick Filter Pills & Dual Track Progress Bar) -->
+      <!-- 3. DETAILED TABLE (Dengan Avatar Karyawan, Quick Filter Pills & Dual Track Progress Bar) -->
       <section class="apple-card overflow-hidden" id="employeeTableSection">
         <div class="p-5 sm:p-6 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -506,17 +506,24 @@
 
   </main>
 
-  <!-- MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN (Apple HIG Sheet Style) -->
+  <!-- MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN (Dengan Foto Avatar & Status Ring - Apple HIG Sheet Style) -->
   <div id="detailModal" onclick="handleModalBackdropClick(event)" class="fixed inset-0 z-50 hidden bg-black/30 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white border border-black/[0.08] rounded-2xl w-full max-w-5xl max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
-      <!-- Modal Header -->
+      <!-- Header Modal -->
       <div class="p-5 border-b border-black/[0.06] flex flex-wrap items-center justify-between gap-4 bg-[#FAFAFC]">
-        <div>
-          <div class="flex items-center gap-2.5">
-            <h3 id="modalEmpName" class="text-base sm:text-lg font-semibold text-apple-ink tracking-tight">Nama Karyawan</h3>
-            <span id="modalEmpDiv" class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-apple-blue/10 text-apple-blue">Divisi</span>
+        <div class="flex items-center gap-3.5">
+          <!-- FOTO AVATAR KARYAWAN DI POP-UP -->
+          <div class="relative shrink-0">
+            <img id="modalEmpAvatar" src="" alt="Avatar" class="w-12 h-12 rounded-full object-cover bg-apple-fill ring-2 ring-apple-blue/40 shadow-xs" />
+            <span id="modalEmpStatusDot" class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-apple-green ring-2 ring-white"></span>
           </div>
-          <p id="modalEmpSummary" class="text-xs text-apple-secondary mt-1 tabular-nums">Ringkasan capaian periode aktif</p>
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h3 id="modalEmpName" class="text-base sm:text-lg font-semibold text-apple-ink tracking-tight">Nama Karyawan</h3>
+              <span id="modalEmpDiv" class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-apple-blue/10 text-apple-blue">Divisi</span>
+            </div>
+            <p id="modalEmpSummary" class="text-xs text-apple-secondary mt-1 tabular-nums">Ringkasan capaian periode aktif</p>
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="exportSingleEmployeeExcel()" class="px-3 py-1.5 rounded-[10px] bg-white hover:bg-apple-fill text-apple-ink border border-black/[0.1] text-xs font-medium flex items-center gap-1.5 transition active:scale-[0.98] shadow-2xs">
@@ -592,6 +599,7 @@
     let currentQuickFilter = 'all';
     let currentSort = { key: 'kpiPersenBulanan', asc: false };
     let selectedEmployee = null;
+    let selectedEmployeeForModal = null;
 
     function setText(id, text) {
       const el = document.getElementById(id);
@@ -776,7 +784,6 @@
       const end = document.getElementById('filterEndDate')?.value || '';
       const refreshIcon = document.getElementById('refreshIcon');
 
-      // Animasi putar halus pada tombol refresh tanpa menutup konten layar
       if (refreshIcon) refreshIcon.classList.add('animate-spin');
 
       try {
@@ -865,11 +872,9 @@
     function populateDashboard(data) {
       const sum = data.summary || {};
 
-      // Jika mode Bulan Penuh (tanpa filter tanggal), gunakan HARI_KERJA_BULANAN dinamis
       const isDateFiltered = Boolean(data.filter && data.filter.startDate && data.filter.endDate);
       const days = isDateFiltered ? (data.workingDays || 1) : HARI_KERJA_BULANAN;
 
-      // Update Period Badge & Labels
       const badge = document.getElementById('periodBadge');
       if (badge) {
         if (isDateFiltered) {
@@ -887,7 +892,6 @@
       setText('chartTag', `Benchmark ${HARI_KERJA_BULANAN} Hari`);
       setText('thGoalSubLabel', `Periode & Goal ${HARI_KERJA_BULANAN} Hr`);
 
-      // Olah metrik karyawan dengan Hari Kerja Dinamis & Target Kustom
       let totalGoalBulananTim = 0;
       let totalTargetPeriodeTim = 0;
 
@@ -940,7 +944,6 @@
         ? Math.round((processedEmployees.reduce((acc, curr) => acc + (curr.hariKirim || 0), 0) / (processedEmployees.length * days)) * 1000) / 10
         : (sum.complianceRate || 0);
 
-      // Populate Top Cards
       setText('cardTotalPoin', (sum.totalPoin || 0).toLocaleString('id-ID'));
       setText('cardTargetRatio', `/ ${totalTargetPeriodeTim.toLocaleString('id-ID')} target periode`);
       setText('cardPeriodTargetNote', `Goal Bulanan (${HARI_KERJA_BULANAN} Hr): ${totalGoalBulananTim.toLocaleString('id-ID')} poin`);
@@ -1127,6 +1130,36 @@
     }
 
     // =========================================================================
+    // HELPER FOTO AVATAR GITHUB & FALLBACK ILUSTRASI OTOMATIS
+    // =========================================================================
+    function getEmployeeAvatarPath(empName) {
+      const cleanName = String(empName || 'user').toLowerCase().trim().replace(/\s+/g, '-');
+      return `avatars/${cleanName}.jpg`;
+    }
+
+    function getFallbackIllustrationUrl(empName) {
+      const seed = encodeURIComponent(String(empName || 'Staff').trim());
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+    }
+
+    function handleAvatarError(imgEl, empName) {
+      const cleanName = String(empName || 'user').toLowerCase().trim().replace(/\s+/g, '-');
+      if (!imgEl.dataset.triedPng) {
+        imgEl.dataset.triedPng = 'true';
+        imgEl.src = `avatars/${cleanName}.png`;
+      } else {
+        imgEl.onerror = null;
+        imgEl.src = getFallbackIllustrationUrl(empName);
+      }
+    }
+
+    function getAvatarRingStyle(emp) {
+      if (emp.kpiGoalPersen >= 100) return 'ring-[#34C759]/80';
+      if (emp.belumUbahStatus > 0) return 'ring-[#FF9500]/80';
+      return 'ring-apple-blue/40';
+    }
+
+    // =========================================================================
     // FITUR QUICK FILTER PILLS & SORTING TABEL
     // =========================================================================
     function setQuickFilter(filterType) {
@@ -1233,16 +1266,27 @@
         const goalBulanan = emp.goalBulanan;
         const goalBulananText = goalBulanan > 0 ? `Goal: ${goalBulanan}` : 'Goal: -';
 
+        const safeName = emp.nama.replace(/'/g, "\\'");
+        const ringClass = getAvatarRingStyle(emp);
+
         const row = document.createElement('tr');
         row.className = 'hover:bg-[#F5F5F7] transition-colors cursor-pointer group';
         row.onclick = () => openDetailModal(emp.nama);
         row.innerHTML = `
           <td class="py-2.5 px-4">
-            <div class="font-semibold text-apple-ink group-hover:text-apple-blue text-xs sm:text-[13px] leading-snug flex items-center gap-1 transition-colors">
-              <span>${emp.nama}</span>
-              <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-apple-blue transition-opacity"></i>
+            <div class="flex items-center gap-3">
+              <img src="${getEmployeeAvatarPath(emp.nama)}"
+                   alt="${emp.nama}"
+                   onerror="handleAvatarError(this, '${safeName}')"
+                   class="w-8 h-8 rounded-full object-cover bg-apple-fill ring-2 ${ringClass} shrink-0" />
+              <div>
+                <div class="font-semibold text-apple-ink group-hover:text-apple-blue text-xs sm:text-[13px] leading-snug flex items-center gap-1 transition-colors">
+                  <span>${emp.nama}</span>
+                  <i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-apple-blue transition-opacity"></i>
+                </div>
+                <div class="text-apple-secondary text-[11px]">${emp.divisi}</div>
+              </div>
             </div>
-            <div class="text-apple-secondary text-[11px]">${emp.divisi}</div>
           </td>
           <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <div class="font-semibold text-xs ${emp.isCustomTarget ? 'text-[#B25000]' : 'text-apple-ink'}" title="${emp.isCustomTarget ? `Target Kustom Aktif (Default Divisi: ${emp.baseTargetHarian}/hr)` : 'Target Standar Divisi'}">
@@ -1312,20 +1356,37 @@
     const renderEmployeeTable = renderTable;
 
     // =========================================================================
-    // FITUR MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN & EKSPOR INDIVIDU
+    // FITUR MODAL DRILL-DOWN DETAIL TUGAS KARYAWAN (DENGAN AVATAR) & EKSPOR
     // =========================================================================
     function openDetailModal(empName) {
-      if (!rawDashboardData || !rawDashboardData.employees) return;
-      const emp = rawDashboardData.employees.find(e => e.nama === empName);
+      const sourceList = processedEmployees.length ? processedEmployees : (rawDashboardData?.employees || []);
+      const emp = sourceList.find(e => e.nama === empName);
       if (!emp) return;
 
       selectedEmployee = emp;
+      selectedEmployeeForModal = emp;
+
+      // Set Foto Avatar & Indikator Status di Header Pop-Up
+      const avatarEl = document.getElementById('modalEmpAvatar');
+      const dotEl = document.getElementById('modalEmpStatusDot');
+      if (avatarEl) {
+        delete avatarEl.dataset.triedPng;
+        avatarEl.onerror = function () { handleAvatarError(this, emp.nama); };
+        avatarEl.src = getEmployeeAvatarPath(emp.nama);
+        avatarEl.className = `w-12 h-12 rounded-full object-cover bg-apple-fill ring-2 ${getAvatarRingStyle(emp)} shadow-xs`;
+      }
+      if (dotEl) {
+        const dotColor = emp.kpiGoalPersen >= 100
+          ? 'bg-apple-green'
+          : (emp.belumUbahStatus > 0 ? 'bg-apple-orange' : 'bg-apple-blue');
+        dotEl.className = `absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full ${dotColor} ring-2 ring-white`;
+      }
 
       setText('modalEmpName', emp.nama);
       setText('modalEmpDiv', emp.divisi);
       setText(
         'modalEmpSummary',
-        `Target: ${emp.targetHarian}/hr ${emp.isCustomTarget ? '(Kustom ★)' : ''} · Poin Selesai: ${emp.poinDiperoleh} · Capaian Periode: ${emp.kpiPersenPeriode}% (${emp.poinDiperoleh}/${emp.targetBulanan}) · Goal ${HARI_KERJA_BULANAN} Hr: ${emp.kpiPersenBulanan}% (${emp.poinDiperoleh}/${emp.goalBulanan})`
+        `Poin Selesai: ${emp.poinDiperoleh} Poin · Target Harian: ${emp.targetHarian}/hr ${emp.isCustomTarget ? '(Kustom ★)' : ''} · Capaian Goal ${HARI_KERJA_BULANAN} Hr: ${emp.kpiGoalPersen}% (${emp.poinDiperoleh}/${emp.goalBulanan}) · Pending: ${emp.belumUbahStatus} tugas`
       );
 
       const statusFilter = document.getElementById('modalStatusFilter');
@@ -1352,14 +1413,15 @@
     }
 
     function renderModalTasks() {
-      if (!selectedEmployee) return;
+      const activeEmp = selectedEmployee || selectedEmployeeForModal;
+      if (!activeEmp) return;
 
       const statusVal = document.getElementById('modalStatusFilter')?.value || 'ALL';
       const searchVal = (document.getElementById('modalTaskSearch')?.value || '').toLowerCase();
       const tbody = document.getElementById('modalTaskBody');
       if (!tbody) return;
 
-      const tasks = selectedEmployee.tasks || [];
+      const tasks = activeEmp.tasks || [];
       const filtered = tasks.filter(t => {
         const matchStatus = statusVal === 'ALL' || t.status === statusVal;
         const matchSearch =
@@ -1404,13 +1466,14 @@
     }
 
     function exportSingleEmployeeExcel() {
-      if (!selectedEmployee) return;
+      const activeEmp = selectedEmployee || selectedEmployeeForModal;
+      if (!activeEmp) return;
 
       const wb = XLSX.utils.book_new();
       const detailRows = [];
       let curDate = '';
 
-      (selectedEmployee.tasks || []).forEach(t => {
+      (activeEmp.tasks || []).forEach(t => {
         const isNewDate = t.tanggal !== curDate;
         if (isNewDate) curDate = t.tanggal;
 
@@ -1427,17 +1490,17 @@
           'Status Rekap': t.status,
           'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
           'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
-          'Target KPI': isNewDate ? selectedEmployee.targetHarian : '',
+          'Target KPI': isNewDate ? activeEmp.targetHarian : '',
           'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
         });
       });
 
-      const sheetName = selectedEmployee.nama.slice(0, 30);
+      const sheetName = activeEmp.nama.slice(0, 30);
       const wsDetail = XLSX.utils.json_to_sheet(detailRows, { origin: 'A5' });
 
       XLSX.utils.sheet_add_aoa(wsDetail, [
-        [`REKAP TO DO LIST & KPI — ${selectedEmployee.nama.toUpperCase()}`],
-        ['Divisi', selectedEmployee.divisi, 'Target Poin KPI/Hari', selectedEmployee.targetHarian, `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, selectedEmployee.goalBulanan],
+        [`REKAP TO DO LIST & KPI — ${activeEmp.nama.toUpperCase()}`],
+        ['Divisi', activeEmp.divisi, 'Target Poin KPI/Hari', activeEmp.targetHarian, `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, activeEmp.goalBulanan],
         ['Kolom Jam', 'Waktu asli data', 'Jam >=17.00', 'Jam Tercatat Selesai'],
         []
       ], { origin: 'A1' });
@@ -1445,28 +1508,29 @@
       XLSX.utils.book_append_sheet(wb, wsDetail, sheetName);
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `Rekap_KPI_${selectedEmployee.nama}_${dateStr}.xlsx`);
+      XLSX.writeFile(wb, `Rekap_KPI_${activeEmp.nama}_${dateStr}.xlsx`);
     }
 
     function exportSingleEmployeePDF() {
-      if (!selectedEmployee) return;
+      const activeEmp = selectedEmployee || selectedEmployeeForModal;
+      if (!activeEmp) return;
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'pt', 'a4');
 
       doc.setFontSize(14);
       doc.setTextColor(29, 29, 31);
-      doc.text(`RINCIAN TUGAS & CAPAIAN KPI — ${selectedEmployee.nama.toUpperCase()} (${selectedEmployee.divisi})`, 40, 40);
+      doc.text(`RINCIAN TUGAS & CAPAIAN KPI — ${activeEmp.nama.toUpperCase()} (${activeEmp.divisi})`, 40, 40);
 
       doc.setFontSize(9.5);
       doc.setTextColor(134, 134, 139);
       doc.text(
-        `Target Harian: ${selectedEmployee.targetHarian}/hr | Poin Selesai: ${selectedEmployee.poinDiperoleh} | Capaian Periode: ${selectedEmployee.kpiPersenPeriode}% | Goal Bulanan (${HARI_KERJA_BULANAN} Hr): ${selectedEmployee.kpiPersenBulanan}% (${selectedEmployee.poinDiperoleh}/${selectedEmployee.goalBulanan})`,
+        `Target Harian: ${activeEmp.targetHarian}/hr | Poin Selesai: ${activeEmp.poinDiperoleh} | Capaian Periode: ${activeEmp.kpiPersenPeriode}% | Goal Bulanan (${HARI_KERJA_BULANAN} Hr): ${activeEmp.kpiPersenBulanan}% (${activeEmp.poinDiperoleh}/${activeEmp.goalBulanan})`,
         40,
         56
       );
 
-      const rows = (selectedEmployee.tasks || []).map((t, idx) => [
+      const rows = (activeEmp.tasks || []).map((t, idx) => [
         idx + 1,
         t.tanggal || '-',
         t.jam || '-',
@@ -1497,7 +1561,7 @@
       });
 
       const dateStr = new Date().toISOString().slice(0, 10);
-      doc.save(`Laporan_Detail_${selectedEmployee.nama}_${dateStr}.pdf`);
+      doc.save(`Laporan_Detail_${activeEmp.nama}_${dateStr}.pdf`);
     }
 
     // =========================================================================
@@ -1655,6 +1719,12 @@
     let sharedAudioCtx = null;
     let lastTriggeredMinute = '';
 
+    // Variabel pengunci audio tunggal & cache agar suara tidak bertumpuk
+    let currentAudioSource = null;
+    let autoSpeakTimer = null;
+    let activeSpeechRequestId = 0;
+    const ttsAudioCache = new Map();
+
     function getAudioCtx() {
       if (!sharedAudioCtx) {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -1664,6 +1734,28 @@
         sharedAudioCtx.resume();
       }
       return sharedAudioCtx;
+    }
+
+    // Menghentikan seluruh antrean timer, request lama, dan suara yang sedang aktif
+    function stopAllNarration() {
+      if (autoSpeakTimer) {
+        clearTimeout(autoSpeakTimer);
+        autoSpeakTimer = null;
+      }
+      activeSpeechRequestId++;
+
+      if (currentAudioSource) {
+        try {
+          currentAudioSource.onended = null;
+          currentAudioSource.stop();
+          currentAudioSource.disconnect();
+        } catch (e) {}
+        currentAudioSource = null;
+      }
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
     }
 
     // Inisialisasi Pengaturan Suara, Timer Pengingat & Auto-Refresh Latar Belakang
@@ -1680,11 +1772,10 @@
       // Jalankan pengecekan jam pengingat otomatis setiap 25 detik
       setInterval(checkScheduledReminders, 25000);
 
-      // TAMBAHKAN BARIS INI: Auto-refresh data spreadsheet tiap 5 menit (300.000 ms)
+      // Auto-refresh data spreadsheet tiap 5 menit (300.000 ms)
       setInterval(silentRefresh, 300000);
     });
 
-    // Simpan konfigurasi Karakter Suara Gemini & Jam Pengingat saat tombol Simpan di Modal diklik
     function saveGeminiConfigFromModal() {
       const voiceEl = document.getElementById('geminiVoiceSelect');
       const mornEl = document.getElementById('morningReminderTime');
@@ -1696,11 +1787,15 @@
     }
 
     function toggleVoiceAuto() {
-      getAudioCtx(); // Membuka kunci autoplay browser
+      getAudioCtx();
       isVoiceEnabled = !isVoiceEnabled;
       localStorage.setItem(VOICE_AUTO_STORAGE, isVoiceEnabled);
       updateVoiceToggleUI();
-      if (isVoiceEnabled) playNotificationChime('morning');
+      if (!isVoiceEnabled) {
+        stopAllNarration();
+      } else {
+        playNotificationChime('morning');
+      }
     }
 
     function updateVoiceToggleUI() {
@@ -1760,15 +1855,25 @@
       }
     }
 
-    // 2. PEMANGGIL SUARA NARATOR GEMINI (MELALUI NETLIFY SERVERLESS PROXY)
+    // 2. PEMANGGIL SUARA NARATOR GEMINI (ANTI SUARA GANDA + CACHE)
     async function speakWithGemini(narrationText, toneStyle = 'ramah dan profesional') {
       if (!isVoiceEnabled || !narrationText) return;
-      saveGeminiConfigFromModal();
 
+      // Hentikan suara/antrean sebelumnya sebelum memulai yang baru
+      stopAllNarration();
+      const requestId = activeSpeechRequestId;
+
+      saveGeminiConfigFromModal();
       const voiceName = localStorage.getItem(GEMINI_VOICE_STORAGE) || 'Aoede';
+      const cacheKey = `${voiceName}::${narrationText}`;
+
+      // Jika narasi yang sama sudah pernah diunduh, putar instan dari cache (hemat kuota API)
+      if (ttsAudioCache.has(cacheKey)) {
+        await playBase64PcmAudio(ttsAudioCache.get(cacheKey), 24000, requestId);
+        return;
+      }
 
       try {
-        // Memanggil endpoint internal Netlify (API Key tersembunyi di server Netlify)
         const res = await fetch('/.netlify/functions/gemini-tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1779,18 +1884,26 @@
           })
         });
 
+        // Abaikan jika sudah ada klik/panggilan baru selama proses loading
+        if (requestId !== activeSpeechRequestId) return;
+
         if (res.ok) {
           const json = await res.json();
+          if (requestId !== activeSpeechRequestId) return;
+
           if (json && json.audioContent) {
-            await playBase64PcmAudio(json.audioContent, 24000);
+            ttsAudioCache.set(cacheKey, json.audioContent);
+            await playBase64PcmAudio(json.audioContent, 24000, requestId);
             return;
           }
         }
       } catch (err) {
+        if (requestId !== activeSpeechRequestId) return;
         console.warn('Endpoint Netlify TTS belum aktif atau gagal, beralih ke suara standar browser:', err);
       }
 
-      // Fallback otomatis ke Web Speech API Bahasa Indonesia jika dibuka secara lokal (offline)
+      if (requestId !== activeSpeechRequestId) return;
+
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(narrationText);
@@ -1801,7 +1914,9 @@
     }
 
     // Decoder PCM 16-bit 24kHz dari Gemini TTS ke Web Audio API
-    async function playBase64PcmAudio(base64Data, sampleRate = 24000) {
+    async function playBase64PcmAudio(base64Data, sampleRate = 24000, requestId = activeSpeechRequestId) {
+      if (requestId !== activeSpeechRequestId) return;
+
       const ctx = getAudioCtx();
       const binaryStr = atob(base64Data);
       const len = binaryStr.length;
@@ -1815,9 +1930,25 @@
       }
       const audioBuffer = ctx.createBuffer(1, float32Arr.length, sampleRate);
       audioBuffer.getChannelData(0).set(float32Arr);
+
+      // Pastikan audio sebelumnya benar-benar berhenti sebelum memulai buffer baru
+      if (currentAudioSource) {
+        try {
+          currentAudioSource.onended = null;
+          currentAudioSource.stop();
+          currentAudioSource.disconnect();
+        } catch (e) {}
+      }
+
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
+      source.onended = () => {
+        if (currentAudioSource === source) {
+          currentAudioSource = null;
+        }
+      };
+      currentAudioSource = source;
       source.start();
     }
 
@@ -1826,8 +1957,12 @@
       const container = document.getElementById('notificationToastContainer');
       if (!container) return;
 
+      stopAllNarration();
       playNotificationChime(type);
-      setTimeout(() => speakWithGemini(narration, tone), 450);
+      autoSpeakTimer = setTimeout(() => {
+        autoSpeakTimer = null;
+        speakWithGemini(narration, tone);
+      }, 450);
 
       const themeMap = {
         morning: {
@@ -1866,7 +2001,7 @@
               <p class="text-[11px] text-apple-secondary font-medium">${subtitle}</p>
             </div>
           </div>
-          <button onclick="this.closest('.pointer-events-auto').remove()" class="w-6 h-6 rounded-full bg-apple-fill text-apple-secondary hover:text-apple-ink flex items-center justify-center transition">
+          <button onclick="stopAllNarration(); this.closest('.pointer-events-auto').remove()" class="w-6 h-6 rounded-full bg-apple-fill text-apple-secondary hover:text-apple-ink flex items-center justify-center transition">
             <i data-lucide="x" class="w-3.5 h-3.5"></i>
           </button>
         </div>
