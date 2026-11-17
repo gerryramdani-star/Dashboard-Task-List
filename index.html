@@ -2044,15 +2044,15 @@
 
       const sampleNames = missingStaf.slice(0, 3).map(e => e.nama).join(', ');
       const narration = count > 0
-        ? `Selamat pagi! Sekadar mengingatkan, saat ini masih ada ${count} rekan tim, termasuk ${sampleNames}, yang belum mengirimkan to-do list hari ini. Yuk segera kita follow-up.`
-        : `Selamat pagi! Luar biasa, seluruh anggota tim aktif sudah mengirimkan rencana to-do list mereka hari ini.`;
+        ? `Selamat pagi! Sekadar mengingatkan, saat ini masih ada ${count} rekan tim, termasuk ${sampleNames}, yang belum mengirimkan to do list hari ini. Yuk, segera kita follow up!`
+        : `Selamat pagi! Luar biasa, seluruh anggota tim aktif sudah mengirimkan rencana to do list mereka hari ini!`;
 
       showSmartNotification({
         type: 'morning',
         title: '⏰ Pengingat Presensi Pagi',
         subtitle: count > 0 ? `${count} Staf Belum Input To-Do List` : '100% Tim Sudah Kirim List',
         narration: narration,
-        tone: 'hangat, ramah, dan penuh semangat pagi',
+        tone: 'hangat',
         actionLabel: 'Urutkan Belum Kirim',
         onAction: () => {
           currentSort = { key: '', asc: true };
@@ -2070,7 +2070,7 @@
       if (totalPending === 0 && !isManualTest) return;
 
       const narration = totalPending > 0
-        ? `Halo, jam operasional hampir berakhir. Masih tercatat ${totalPending} tugas dari ${pendingStaf.length} anggota tim yang statusnya belum diubah menjadi selesai. Mohon diingatkan agar poin KPI harian mereka tervalidasi.`
+        ? `Halo, jam operasional hampir berakhir. Masih tercatat ${totalPending} tugas dari ${pendingStaf.length} anggota tim yang statusnya belum diubah menjadi selesai. Mohon diingatkan agar poin KPI harian mereka segera tervalidasi.`
         : `Evaluasi sore selesai! Seluruh tugas tim hari ini sudah diperbarui tanpa ada antrean pending.`;
 
       showSmartNotification({
@@ -2078,7 +2078,7 @@
         title: '⚠️ Evaluasi Tugas Sore',
         subtitle: `${totalPending} Tugas Masih Berstatus Pending`,
         narration: narration,
-        tone: 'suportif, jelas, dan mengingatkan dengan sopan',
+        tone: 'suportif',
         actionLabel: 'Filter Staf Pending',
         onAction: () => {
           setQuickFilter('pending');
