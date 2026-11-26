@@ -479,7 +479,7 @@
                 <th onclick="sortTable('poinDiperoleh')" class="sortable py-3 px-2.5 text-right font-semibold text-apple-ink">
                   Poin<br><span class="text-[10px] text-apple-secondary font-normal">Selesai</span> <span id="sort-poinDiperoleh" class="text-apple-tertiary"></span>
                 </th>
-                <!-- KOLOM BARU: BELUM DIKERJAKAN -->
+                <!-- KOLOM: BELUM DIKERJAKAN -->
                 <th onclick="sortTable('belumDikerjakan')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
                   Belum<br><span class="text-[10px] text-apple-secondary font-normal">Dikerjakan</span> <span id="sort-belumDikerjakan" class="text-apple-tertiary"></span>
                 </th>
@@ -548,7 +548,8 @@
           <select id="modalStatusFilter" onchange="renderModalTasks()" class="bg-apple-fill border border-transparent focus:border-apple-blue focus:bg-white rounded-[10px] px-3 py-1.5 text-xs font-medium text-apple-ink focus:outline-none transition">
             <option value="ALL">Semua Status Tugas</option>
             <option value="Selesai">✅ Selesai</option>
-            <option value="Belum merubah status">⏳ Belum Merubah Status (Pending)</option>
+            <option value="On Progress">🔄 On Progress (Sedang Dikerjakan)</option>
+            <option value="Belum merubah status">⏳ Belum Dikerjakan / Tanpa Status</option>
             <option value="Cancel">❌ Cancel</option>
           </select>
           <div class="relative">
@@ -917,14 +918,12 @@
           ? Math.round((emp.poinDiperoleh / targetPeriode) * 1000) / 10
           : 0;
 
-        // Hitung tugas yang sudah masuk list tapi belum dikerjakan (bukan Selesai & bukan Cancel)
+        // Hanya hitung tugas yang benar-benar belum dikerjakan (tanpa status / 'Belum'), kecualikan 'On Progress'
         const tasksList = emp.tasks || [];
-        const belumDikerjakan = tasksList.length > 0
-          ? tasksList.filter(t => {
-              const st = String(t.status || '').trim().toLowerCase();
-              return st !== 'selesai' && st !== 'cancel';
-            }).length
-          : (emp.belumUbahStatus || 0);
+        const belumDikerjakan = tasksList.filter(t => {
+          const st = String(t.status || '').trim().toLowerCase();
+          return st === '' || st === 'belum' || st === 'belum merubah status' || st === '-- status --';
+        }).length;
 
         const tidakKirimDinamis = Math.max(0, days - (emp.hariKirim || 0));
         const statusGoal = kpiGoalPersen >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
@@ -1313,7 +1312,7 @@
             <span class="text-[13px] font-semibold text-apple-ink">${emp.poinDiperoleh}</span>
             <span class="text-apple-secondary text-[10px] block">${emp.totalTugas} tugas</span>
           </td>
-          <!-- SEL DATA BARU: BELUM DIKERJAKAN -->
+          <!-- SEL DATA: BELUM DIKERJAKAN -->
           <td class="py-2.5 px-2 text-center whitespace-nowrap">
             <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${emp.belumDikerjakan > 0 ? 'bg-[#FF9500]/15 text-[#B25000]' : 'text-apple-tertiary'}">
               ${emp.belumDikerjakan}
@@ -1444,7 +1443,15 @@
 
       const tasks = activeEmp.tasks || [];
       const filtered = tasks.filter(t => {
-        const matchStatus = statusVal === 'ALL' || t.status === statusVal;
+        const stLower = String(t.status || '').trim().toLowerCase();
+        let matchStatus = statusVal === 'ALL';
+        if (!matchStatus) {
+          if (statusVal === 'Belum merubah status') {
+            matchStatus = stLower === '' || stLower === 'belum' || stLower === 'belum merubah status' || stLower === '-- status --';
+          } else {
+            matchStatus = stLower === statusVal.toLowerCase();
+          }
+        }
         const matchSearch =
           (t.tugas || '').toLowerCase().includes(searchVal) ||
           (t.klien || '').toLowerCase().includes(searchVal) ||
@@ -1461,11 +1468,18 @@
       }
 
       filtered.forEach(t => {
-        const isSelesai = t.status === 'Selesai';
-        const isCancel = t.status === 'Cancel';
+        const stLower = String(t.status || '').trim().toLowerCase();
+        const isSelesai = stLower === 'selesai';
+        const isOnProgress = stLower === 'on progress';
+        const isCancel = stLower === 'cancel';
         const badgeClass = isSelesai
           ? 'bg-[#34C759]/15 text-[#1D8338]'
-          : (isCancel ? 'bg-[#FF3B30]/12 text-[#D70015]' : 'bg-[#FF9500]/15 text-[#B25000]');
+          : isOnProgress
+            ? 'bg-apple-blue/12 text-apple-blue'
+            : isCancel
+              ? 'bg-[#FF3B30]/12 text-[#D70015]'
+              : 'bg-[#FF9500]/15 text-[#B25000]';
+        const displayStatus = t.status && String(t.status).trim() !== '' ? t.status : 'Belum merubah status';
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-[#F5F5F7]/60 transition-colors';
@@ -1478,7 +1492,7 @@
           <td class="py-2.5 px-3 text-right font-semibold">${isSelesai ? t.poin : 0}</td>
           <td class="py-2.5 px-4 text-center whitespace-nowrap">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${badgeClass}">
-              ${t.status}
+              ${displayStatus}
             </span>
           </td>
         `;
@@ -1500,6 +1514,7 @@
 
         const jamVal = t.jam || '';
         const isSelesaiTime = jamVal >= '17:00';
+        const isSelesaiStatus = String(t.status || '').trim().toLowerCase() === 'selesai';
 
         detailRows.push({
           'Tanggal': isNewDate ? t.tanggal : '',
@@ -1508,8 +1523,8 @@
           'Klien': t.klien || '-',
           'To Do List / Pekerjaan': t.tugas,
           'Qty': t.qty,
-          'Status Rekap': t.status,
-          'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
+          'Status Rekap': t.status || 'Belum merubah status',
+          'Poin Tugas': isSelesaiStatus ? t.poin : 0,
           'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
           'Target KPI': isNewDate ? activeEmp.targetHarian : '',
           'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
@@ -1551,16 +1566,19 @@
         56
       );
 
-      const rows = (activeEmp.tasks || []).map((t, idx) => [
-        idx + 1,
-        t.tanggal || '-',
-        t.jam || '-',
-        t.klien || '-',
-        t.tugas || '-',
-        t.qty || 1,
-        t.status === 'Selesai' ? t.poin : 0,
-        t.status
-      ]);
+      const rows = (activeEmp.tasks || []).map((t, idx) => {
+        const isSelesaiStatus = String(t.status || '').trim().toLowerCase() === 'selesai';
+        return [
+          idx + 1,
+          t.tanggal || '-',
+          t.jam || '-',
+          t.klien || '-',
+          t.tugas || '-',
+          t.qty || 1,
+          isSelesaiStatus ? t.poin : 0,
+          t.status || 'Belum merubah status'
+        ];
+      });
 
       doc.autoTable({
         startY: 72,
@@ -1628,6 +1646,7 @@
 
           const jamVal = t.jam || '';
           const isSelesaiTime = jamVal >= '17:00';
+          const isSelesaiStatus = String(t.status || '').trim().toLowerCase() === 'selesai';
 
           detailRows.push({
             'Tanggal': isNewDate ? t.tanggal : '',
@@ -1636,8 +1655,8 @@
             'Klien': t.klien || '-',
             'To Do List / Pekerjaan': t.tugas,
             'Qty': t.qty,
-            'Status Rekap': t.status,
-            'Poin Tugas': t.status === 'Selesai' ? t.poin : 0,
+            'Status Rekap': t.status || 'Belum merubah status',
+            'Poin Tugas': isSelesaiStatus ? t.poin : 0,
             'Total Poin': isNewDate ? `=SUMIF(A:A; "${t.tanggal}"; H:H)` : '',
             'Target KPI': isNewDate ? emp.targetHarian : '',
             'Capaian KPI': isNewDate ? `=IF(I${detailRows.length + 6}>=J${detailRows.length + 6}; "TERCAPAI"; "BELUM TERCAPAI")` : ''
