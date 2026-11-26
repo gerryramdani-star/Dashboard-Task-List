@@ -426,7 +426,7 @@
         </div>
       </section>
 
-      <!-- 3. DETAILED TABLE (Dengan Avatar Karyawan, Quick Filter Pills & Dual Track Progress Bar) -->
+      <!-- 3. DETAILED TABLE (Dengan Avatar Karyawan, Kolom Belum Dikerjakan, Quick Filter Pills & Dual Track Progress Bar) -->
       <section class="apple-card overflow-hidden" id="employeeTableSection">
         <div class="p-5 sm:p-6 border-b border-black/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -478,6 +478,10 @@
                 </th>
                 <th onclick="sortTable('poinDiperoleh')" class="sortable py-3 px-2.5 text-right font-semibold text-apple-ink">
                   Poin<br><span class="text-[10px] text-apple-secondary font-normal">Selesai</span> <span id="sort-poinDiperoleh" class="text-apple-tertiary"></span>
+                </th>
+                <!-- KOLOM BARU: BELUM DIKERJAKAN -->
+                <th onclick="sortTable('belumDikerjakan')" class="sortable py-3 px-2 text-center font-semibold text-apple-ink">
+                  Belum<br><span class="text-[10px] text-apple-secondary font-normal">Dikerjakan</span> <span id="sort-belumDikerjakan" class="text-apple-tertiary"></span>
                 </th>
                 <th onclick="sortTable('kpiPersenBulanan')" class="sortable py-3 px-3 text-center font-semibold text-apple-ink">
                   Capaian KPI <span id="sort-kpiPersenBulanan" class="text-apple-blue">↓</span><br><span class="text-[10px] text-apple-blue font-normal" id="thGoalSubLabel">Periode & Goal Bulanan</span>
@@ -867,7 +871,7 @@
     }
 
     // =========================================================================
-    // KALKULASI METRIK DINAMIS (HARI KERJA BULANAN & TARGET KUSTOM)
+    // KALKULASI METRIK DINAMIS (HARI KERJA BULANAN, TARGET KUSTOM & BELUM DIKERJAKAN)
     // =========================================================================
     function populateDashboard(data) {
       const sum = data.summary || {};
@@ -913,6 +917,15 @@
           ? Math.round((emp.poinDiperoleh / targetPeriode) * 1000) / 10
           : 0;
 
+        // Hitung tugas yang sudah masuk list tapi belum dikerjakan (bukan Selesai & bukan Cancel)
+        const tasksList = emp.tasks || [];
+        const belumDikerjakan = tasksList.length > 0
+          ? tasksList.filter(t => {
+              const st = String(t.status || '').trim().toLowerCase();
+              return st !== 'selesai' && st !== 'cancel';
+            }).length
+          : (emp.belumUbahStatus || 0);
+
         const tidakKirimDinamis = Math.max(0, days - (emp.hariKirim || 0));
         const statusGoal = kpiGoalPersen >= 100 ? 'TERCAPAI' : 'BELUM TERCAPAI';
 
@@ -926,6 +939,7 @@
         emp.kpiPeriodePersen = kpiPeriodePersen;
         emp.kpiPersenBulanan = kpiGoalPersen;
         emp.kpiPersenPeriode = kpiPeriodePersen;
+        emp.belumDikerjakan = belumDikerjakan;
         emp.tidakKirim = tidakKirimDinamis;
         emp.statusGoal = statusGoal;
         emp.statusCapaianBulanan = statusGoal;
@@ -1196,7 +1210,7 @@
         currentSort.asc = key === 'nama';
       }
 
-      const sortKeys = ['nama', 'targetHarian', 'poinDiperoleh', 'kpiPersenBulanan', 'hariKirim', 'belumUbahStatus', 'tidakKirim'];
+      const sortKeys = ['nama', 'targetHarian', 'poinDiperoleh', 'belumDikerjakan', 'kpiPersenBulanan', 'hariKirim', 'belumUbahStatus', 'tidakKirim'];
       sortKeys.forEach(k => {
         const el = document.getElementById(`sort-${k}`);
         if (!el) return;
@@ -1251,7 +1265,7 @@
       });
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-apple-secondary text-xs">Tidak ada data karyawan yang sesuai filter.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-apple-secondary text-xs">Tidak ada data karyawan yang sesuai filter.</td></tr>`;
         return;
       }
 
@@ -1298,6 +1312,13 @@
           <td class="py-2.5 px-2.5 text-right whitespace-nowrap">
             <span class="text-[13px] font-semibold text-apple-ink">${emp.poinDiperoleh}</span>
             <span class="text-apple-secondary text-[10px] block">${emp.totalTugas} tugas</span>
+          </td>
+          <!-- SEL DATA BARU: BELUM DIKERJAKAN -->
+          <td class="py-2.5 px-2 text-center whitespace-nowrap">
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${emp.belumDikerjakan > 0 ? 'bg-[#FF9500]/15 text-[#B25000]' : 'text-apple-tertiary'}">
+              ${emp.belumDikerjakan}
+            </span>
+            <span class="text-apple-secondary text-[10px] block">dari ${emp.totalTugas} list</span>
           </td>
           <td class="py-2.5 px-3 min-w-[135px] max-w-[165px]">
             <!-- 1. TRACK ATAS: PERIODE AKTIF / HARIAN (Biru / Hijau) -->
@@ -1386,7 +1407,7 @@
       setText('modalEmpDiv', emp.divisi);
       setText(
         'modalEmpSummary',
-        `Poin Selesai: ${emp.poinDiperoleh} Poin · Target Harian: ${emp.targetHarian}/hr ${emp.isCustomTarget ? '(Kustom ★)' : ''} · Capaian Goal ${HARI_KERJA_BULANAN} Hr: ${emp.kpiGoalPersen}% (${emp.poinDiperoleh}/${emp.goalBulanan}) · Pending: ${emp.belumUbahStatus} tugas`
+        `Poin Selesai: ${emp.poinDiperoleh} Poin · Target Harian: ${emp.targetHarian}/hr ${emp.isCustomTarget ? '(Kustom ★)' : ''} · Capaian Goal ${HARI_KERJA_BULANAN} Hr: ${emp.kpiGoalPersen}% (${emp.poinDiperoleh}/${emp.goalBulanan}) · Belum Dikerjakan: ${emp.belumDikerjakan} tugas`
       );
 
       const statusFilter = document.getElementById('modalStatusFilter');
@@ -1585,6 +1606,7 @@
         [`Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`]: e.goalBulanan || (e.targetHarian * HARI_KERJA_BULANAN),
         'Poin Selesai': e.poinDiperoleh,
         'Total Tugas': e.totalTugas,
+        'Belum Dikerjakan': e.belumDikerjakan,
         'Capaian Periode (%)': `${e.kpiPersenPeriode}%`,
         'Capaian Goal Bulanan (%)': `${e.kpiPersenBulanan}%`,
         'Hari Kirim List': e.hariKirim,
@@ -1675,6 +1697,7 @@
         e.divisi,
         `${e.targetHarian}/hr ${e.isCustomTarget ? '★' : ''} (${e.goalBulanan} goal)`,
         e.poinDiperoleh,
+        `${e.belumDikerjakan}/${e.totalTugas}`,
         `${e.kpiPersenPeriode}% prd | ${e.kpiPersenBulanan}% bln`,
         `${e.hariKirim} / ${days}`,
         e.belumUbahStatus,
@@ -1684,21 +1707,22 @@
 
       doc.autoTable({
         startY: 72,
-        head: [['No', 'Nama Karyawan', 'Divisi', 'Target & Goal', 'Poin', 'Capaian (Prd / Goal)', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
+        head: [['No', 'Nama Karyawan', 'Divisi', 'Target & Goal', 'Poin', 'Blm Dikerjakan', 'Capaian (Prd / Goal)', 'Kirim', 'Belum Ubah', 'Tdk Kirim', 'Status']],
         body: tableRows,
         theme: 'grid',
-        styles: { fontSize: 8, cellPadding: 5, textColor: [29, 29, 31], lineColor: [229, 229, 234], lineWidth: 0.5 },
+        styles: { fontSize: 7.5, cellPadding: 4.5, textColor: [29, 29, 31], lineColor: [229, 229, 234], lineWidth: 0.5 },
         headStyles: { fillColor: [245, 245, 247], textColor: [29, 29, 31], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [252, 252, 254] },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 25 },
+          0: { halign: 'center', cellWidth: 24 },
           3: { halign: 'center' },
           4: { halign: 'right' },
           5: { halign: 'center' },
           6: { halign: 'center' },
           7: { halign: 'center' },
           8: { halign: 'center' },
-          9: { halign: 'center' }
+          9: { halign: 'center' },
+          10: { halign: 'center' }
         }
       });
 
