@@ -6,7 +6,7 @@
   <title>Monitoring KPI & Task List</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- ApexCharts -->
+  <!-- ApexCharts (Digunakan untuk Diagram Donat Status Deadline Content Calendar) -->
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -401,34 +401,7 @@
 
       </section>
 
-      <!-- 2. CHARTS SECTION -->
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <!-- BAR CHART -->
-        <div class="lg:col-span-2 apple-card p-6 space-y-3">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 class="text-sm font-semibold text-apple-ink tracking-tight">Perolehan Poin vs Goal Bulanan</h2>
-              <p class="text-xs text-apple-secondary">Klik pada batang grafik untuk melihat rincian tugas karyawan</p>
-            </div>
-            <span id="chartTag" class="text-[11px] px-2.5 py-1 rounded-full bg-apple-fill text-apple-secondary font-medium self-start sm:self-auto">
-              Benchmark 22 Hari
-            </span>
-          </div>
-          <div id="barChart" class="min-h-[340px]"></div>
-        </div>
-
-        <!-- DONUT CHART -->
-        <div class="apple-card p-6 space-y-4 flex flex-col justify-between">
-          <div>
-            <h2 class="text-sm font-semibold text-apple-ink tracking-tight">Distribusi Poin Divisi</h2>
-            <p class="text-xs text-apple-secondary">Kontribusi poin selesai per departemen</p>
-          </div>
-          <div id="donutChart" class="flex-1 flex items-center justify-center min-h-[240px]"></div>
-          <div id="donutLegend" class="space-y-2 pt-3 border-t border-black/[0.06] tabular-nums"></div>
-        </div>
-      </section>
-
-      <!-- 2.5. CONTENT CALENDAR (2/3) & DISTRIBUSI STATUS DEADLINE DONUT (1/3) -->
+      <!-- 2. CONTENT CALENDAR (2/3) & DISTRIBUSI STATUS DEADLINE DONUT (1/3) -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         <!-- KOLOM KIRI (2/3): COMPACT CONTENT CALENDAR -->
@@ -698,8 +671,6 @@
 
     let rawDashboardData = null;
     let processedEmployees = [];
-    let barChartInstance = null;
-    let donutChartInstance = null;
 
     // State untuk Quick Filter, Sorting, & Modal Drill-down
     let currentQuickFilter = 'all';
@@ -995,7 +966,6 @@
       }
 
       setText('cardWorkDaysLabel', HARI_KERJA_BULANAN);
-      setText('chartTag', `Benchmark ${HARI_KERJA_BULANAN} Hari`);
       setText('thGoalSubLabel', `Periode & Goal ${HARI_KERJA_BULANAN} Hr`);
 
       let totalGoalBulananTim = 0;
@@ -1093,7 +1063,6 @@
         divFilter.value = divisions.includes(curSelected) ? curSelected : 'ALL';
       }
 
-      renderCharts(data);
       renderTable();
 
       // Inisialisasi & render Content Calendar beserta Diagram Donat Status Deadline
@@ -1101,149 +1070,6 @@
 
       // Deteksi otomatis pencapaian KPI >= 100%
       checkKpiCelebrations(processedEmployees);
-    }
-
-    function renderCharts(data) {
-      const emps = [...(data.employees || [])].sort((a, b) => b.kpiPersenBulanan - a.kpiPersenBulanan);
-      const categories = emps.map(e => e.nama);
-      const points = emps.map(e => e.poinDiperoleh);
-      const goals = emps.map(e => e.goalBulanan);
-
-      const chartEl = document.querySelector("#barChart");
-      if (chartEl) {
-        const barOptions = {
-          series: [
-            { name: 'Poin Selesai', data: points },
-            { name: `Goal Bulanan (${HARI_KERJA_BULANAN} Hari)`, data: goals }
-          ],
-          chart: {
-            type: 'bar',
-            height: 340,
-            toolbar: { show: false },
-            background: 'transparent',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif',
-            events: {
-              dataPointSelection: function(event, chartContext, config) {
-                const clickedEmp = emps[config.dataPointIndex];
-                if (clickedEmp) openDetailModal(clickedEmp.nama);
-              }
-            }
-          },
-          theme: { mode: 'light' },
-          colors: ['#0071E3', '#E5E5EA'],
-          plotOptions: {
-            bar: {
-              horizontal: false,
-              columnWidth: '56%',
-              borderRadius: 5
-            }
-          },
-          dataLabels: { enabled: false },
-          stroke: { show: true, width: 2, colors: ['transparent'] },
-          xaxis: {
-            categories: categories,
-            axisBorder: { show: false },
-            axisTicks: { show: false },
-            labels: {
-              rotate: -40,
-              style: { colors: '#86868B', fontSize: '11px', fontWeight: 500 }
-            }
-          },
-          yaxis: {
-            labels: {
-              style: { colors: '#86868B', fontSize: '11px' },
-              formatter: val => Math.round(val)
-            }
-          },
-          grid: {
-            borderColor: '#F2F2F7',
-            strokeDashArray: 0
-          },
-          legend: {
-            position: 'top',
-            horizontalAlign: 'right',
-            fontSize: '11px',
-            labels: { colors: '#1D1D1F' },
-            markers: { radius: 6 }
-          },
-          tooltip: {
-            theme: 'light',
-            y: {
-              formatter: (val, opts) => {
-                const emp = emps[opts.dataPointIndex];
-                return `${val} Poin (${emp.kpiPersenBulanan}% dari Goal)`;
-              }
-            }
-          }
-        };
-
-        if (barChartInstance) barChartInstance.destroy();
-        barChartInstance = new ApexCharts(chartEl, barOptions);
-        barChartInstance.render();
-      }
-
-      const donutEl = document.querySelector("#donutChart");
-      if (donutEl) {
-        const divNames = Object.keys(data.divisionStats || {});
-        const divPoints = divNames.map(k => Math.round((data.divisionStats[k].poin || 0) * 10) / 10);
-        const applePalette = ['#0071E3', '#34C759', '#FF9500', '#5856D6', '#AF52DE', '#00C7BE', '#FF2D55', '#8E8E93'];
-
-        const donutOptions = {
-          series: divPoints,
-          labels: divNames,
-          chart: {
-            type: 'donut',
-            height: 240,
-            background: 'transparent',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif'
-          },
-          theme: { mode: 'light' },
-          colors: applePalette,
-          legend: { show: false },
-          dataLabels: { enabled: false },
-          stroke: { width: 2, colors: ['#FFFFFF'] },
-          plotOptions: {
-            pie: {
-              donut: {
-                size: '74%',
-                labels: {
-                  show: true,
-                  name: { fontSize: '11px', color: '#86868B' },
-                  value: { fontSize: '20px', fontWeight: 600, color: '#1D1D1F' },
-                  total: {
-                    show: true,
-                    label: 'Total Poin',
-                    fontSize: '11px',
-                    color: '#86868B',
-                    formatter: () => Math.round(data.summary?.totalPoin || 0).toLocaleString('id-ID')
-                  }
-                }
-              }
-            }
-          }
-        };
-
-        if (donutChartInstance) donutChartInstance.destroy();
-        donutChartInstance = new ApexCharts(donutEl, donutOptions);
-        donutChartInstance.render();
-
-        const legendEl = document.getElementById('donutLegend');
-        if (legendEl) {
-          legendEl.innerHTML = '';
-          divNames.forEach((dName, idx) => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center justify-between text-xs';
-            item.innerHTML = `
-              <div class="flex items-center gap-2 text-apple-secondary">
-                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${applePalette[idx % applePalette.length]}"></span>
-                <span class="text-apple-ink font-medium">${dName}</span>
-              </div>
-              <span class="font-semibold text-apple-ink">${divPoints[idx]}</span>
-            `;
-            legendEl.appendChild(item);
-          });
-        }
-      }
     }
 
     // =========================================================================
